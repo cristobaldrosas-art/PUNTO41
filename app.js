@@ -1,3 +1,4 @@
+
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -1351,7 +1352,12 @@ function executeCheckout() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ total: Math.round(finalTotal) })
       })
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) {
+          return res.text().then(text => { throw new Error(text || `Error HTTP ${res.status}`); });
+        }
+        return res.json();
+      })
       .then(data => {
         if (data.success) {
           showToast('Boleta emitida con éxito en el SII', 'success');
@@ -3639,7 +3645,12 @@ function connectSII() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rut, clave })
   })
-  .then(res => res.json())
+  .then(res => {
+    if (!res.ok) {
+      return res.text().then(text => { throw new Error(text || `Error HTTP ${res.status}`); });
+    }
+    return res.json();
+  })
   .then(data => {
     if (data.success) {
       if (data.status === 'captcha_required') {
@@ -3687,7 +3698,12 @@ function submitSIICaptcha() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ captchaText })
   })
-  .then(res => res.json())
+  .then(res => {
+    if (!res.ok) {
+      return res.text().then(text => { throw new Error(text || `Error HTTP ${res.status}`); });
+    }
+    return res.json();
+  })
   .then(data => {
     if (data.success) {
       updateSIIStatusUI(null, 'connected');
