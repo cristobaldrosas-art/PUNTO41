@@ -71,11 +71,16 @@
         </div>
       </div>
     </aside>
-
+    <!-- Sidebar Navigation Backdrop for mobile -->
+    <div class="sidebar-overlay-backdrop" id="sidebar-backdrop"></div>
+ 
     <!-- Main Content Area -->
     <main class="main-content">
       <!-- Top Header -->
       <header class="top-header">
+        <button class="mobile-menu-toggle" id="btn-mobile-menu" title="Menú" style="display: none; background: none; border: none; cursor: pointer; color: var(--text-main); margin-right: 12px; padding: 4px; align-items: center; justify-content: center;">
+          <i class="fa-solid fa-bars" style="font-size: 20px;"></i>
+        </button>
         <div class="header-title">
           <h2 id="current-view-title">Dashboard</h2>
           <p id="current-date-string"></p>
@@ -233,8 +238,11 @@
           </div>
 
           <!-- Cart / Ticket Area -->
-          <div class="pos-ticket-sidebar">
+          <div class="pos-ticket-sidebar" id="pos-ticket-sidebar">
             <div class="ticket-header">
+              <button class="btn-close-ticket" id="btn-close-ticket-mobile" style="display: none; background: none; border: none; cursor: pointer; color: var(--text-main); margin-right: 10px; padding: 4px; align-items: center; justify-content: center;">
+                <i class="fa-solid fa-arrow-left" style="font-size: 16px;"></i>
+              </button>
               <h3>Ticket Actual</h3>
               <button class="btn-clear-cart" id="btn-clear-cart" title="Vaciar Carrito">
                 <i class="fa-solid fa-trash-can"></i>
@@ -370,6 +378,22 @@
               </button>
             </div>
           </div>
+        </div>
+        
+        <!-- Mobile Floating Cart Action Bar -->
+        <div class="pos-mobile-cart-bar" id="pos-mobile-cart-bar" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background-color: #ffffff; border-top: 1px solid var(--border-color); padding: 12px 20px; box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08); z-index: 100; align-items: center; justify-content: space-between;">
+          <div class="mobile-cart-info" style="display: flex; align-items: center; gap: 10px;">
+            <div style="background-color: rgba(29, 78, 216, 0.1); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; color: var(--primary);">
+              <i class="fa-solid fa-cart-shopping" style="font-size: 18px;"></i>
+            </div>
+            <div style="display: flex; flex-direction: column;">
+              <span id="pos-mobile-cart-count" style="font-size: 11px; color: var(--text-muted); font-weight: 600; line-height: 1.2;">0 productos</span>
+              <strong id="pos-mobile-cart-total" style="font-size: 16px; color: var(--text-main); font-weight: 700; line-height: 1.2;">$0</strong>
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary" id="btn-mobile-view-ticket" style="font-size: 13px; padding: 10px 18px; display: flex; align-items: center; gap: 6px; border-radius: var(--radius-sm);">
+            Ver Ticket <i class="fa-solid fa-chevron-up" style="font-size: 11px;"></i>
+          </button>
         </div>
       </section>
 
