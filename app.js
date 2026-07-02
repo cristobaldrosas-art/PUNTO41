@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -557,6 +556,51 @@ function setupEventListeners() {
       submitSIICaptcha();
     });
   }
+
+  // --- CONTROL DE NAVEGACIÓN Y TICKET MÓVIL ---
+  
+  // Toggle del menú hamburguesa lateral
+  const btnMobileMenu = document.getElementById('btn-mobile-menu');
+  const sidebar = document.querySelector('.sidebar');
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+
+  if (btnMobileMenu && sidebar && sidebarBackdrop) {
+    btnMobileMenu.addEventListener('click', () => {
+      sidebar.classList.toggle('active');
+      sidebarBackdrop.classList.toggle('active');
+    });
+
+    // Cerrar menú al hacer clic en el fondo oscuro (backdrop)
+    sidebarBackdrop.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+      sidebarBackdrop.classList.remove('active');
+    });
+
+    // Cerrar menú móvil al hacer clic en cualquier opción de la barra lateral
+    sidebar.querySelectorAll('.menu-item').forEach(item => {
+      item.addEventListener('click', () => {
+        sidebar.classList.remove('active');
+        sidebarBackdrop.classList.remove('active');
+      });
+    });
+  }
+
+  // Deslizar ticket hacia arriba (Ver Ticket en móviles)
+  const btnMobileViewTicket = document.getElementById('btn-mobile-view-ticket');
+  const ticketSidebar = document.getElementById('pos-ticket-sidebar');
+  if (btnMobileViewTicket && ticketSidebar) {
+    btnMobileViewTicket.addEventListener('click', () => {
+      ticketSidebar.classList.add('active');
+    });
+  }
+
+  // Deslizar ticket hacia abajo (Cerrar ticket móvil)
+  const btnCloseTicketMobile = document.getElementById('btn-close-ticket-mobile');
+  if (btnCloseTicketMobile && ticketSidebar) {
+    btnCloseTicketMobile.addEventListener('click', () => {
+      ticketSidebar.classList.remove('active');
+    });
+  }
 }
 
 function handlePOSClientChange(clientId) {
@@ -1039,6 +1083,14 @@ function renderCart() {
     document.getElementById('ticket-points-discount-row').style.display = 'none';
     document.getElementById('ticket-total').innerText = '$0';
     document.getElementById('btn-checkout-total').innerText = '$0';
+    
+    // Actualizar barra del carrito móvil
+    const mobileCountEl = document.getElementById('pos-mobile-cart-count');
+    const mobileTotalEl = document.getElementById('pos-mobile-cart-total');
+    if (mobileCountEl && mobileTotalEl) {
+      mobileCountEl.innerText = '0 productos';
+      mobileTotalEl.innerText = '$0';
+    }
     return;
   }
 
@@ -1158,6 +1210,15 @@ function renderCart() {
   document.getElementById('ticket-total').innerText = formatCurrency(finalTotal);
   document.getElementById('btn-checkout-total').innerText = formatCurrency(finalTotal);
   updateCashChange();
+
+  // Actualizar barra del carrito móvil
+  const mobileCountEl = document.getElementById('pos-mobile-cart-count');
+  const mobileTotalEl = document.getElementById('pos-mobile-cart-total');
+  if (mobileCountEl && mobileTotalEl) {
+    const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+    mobileCountEl.innerText = `${totalQty} producto${totalQty !== 1 ? 's' : ''}`;
+    mobileTotalEl.innerText = formatCurrency(finalTotal);
+  }
 }
 
 function clearCart() {
@@ -1387,6 +1448,10 @@ function executeCheckout() {
 
   showToast(`Venta ${newSale.id} confirmada por ${formatCurrency(newSale.total)}${pointsMsg}. Enviando comprobante a impresión...`, 'success');
   
+  // Cerrar el ticket móvil deslizable si está abierto
+  const ticketSidebar = document.getElementById('pos-ticket-sidebar');
+  if (ticketSidebar) ticketSidebar.classList.remove('active');
+
   renderPOS();
   checkLowStockAlerts();
 
