@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -57,8 +56,23 @@ function initApp() {
 async function initSupabaseAsync() {
   try {
     const resConfig = await fetch('/api/config').then(r => r.json());
-    if (resConfig.supabaseUrl && resConfig.supabaseKey && window.supabase) {
-      supabase = window.supabase.createClient(resConfig.supabaseUrl, resConfig.supabaseKey);
+    if (resConfig.supabaseUrl && resConfig.supabaseKey) {
+      // Cargar Supabase CDN dinámicamente para evitar bloqueos del hilo principal
+      await new Promise((resolve) => {
+        if (window.supabase) {
+          resolve();
+          return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        script.onload = () => resolve();
+        script.onerror = () => resolve();
+        document.head.appendChild(script);
+      });
+
+      if (window.supabase) {
+        supabase = window.supabase.createClient(resConfig.supabaseUrl, resConfig.supabaseKey);
+      }
     }
   } catch (err) {
     console.warn('No se pudo obtener la configuración de Supabase desde el servidor, usando modo offline.');
