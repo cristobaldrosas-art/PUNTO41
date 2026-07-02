@@ -1789,3 +1789,212 @@ a {
   border-color: var(--danger) !important;
   box-shadow: 0 0 15px rgba(239, 68, 68, 0.2) !important;
 }
+
+/* ================= OPTIMIZACIÓN MÓVIL (MAX-WIDTH: 768PX) ================= */
+@media (max-width: 768px) {
+  /* 1. NAVEGACIÓN Y MENÚ LATERAL (DRAWER) */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 280px !important;
+    z-index: 1010 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: none !important;
+  }
+
+  .sidebar.active {
+    transform: translateX(0) !important;
+    box-shadow: 8px 0 24px rgba(15, 23, 42, 0.15) !important;
+  }
+
+  .sidebar-brand .brand-text, 
+  .menu-item span,
+  .role-selector-container {
+    display: block !important;
+  }
+
+  .sidebar-menu {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Backdrop para cerrar el menú lateral móvil al hacer clic fuera */
+  .sidebar-overlay-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 1005;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-overlay-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* 2. ÁREA DE CONTENIDO PRINCIPAL */
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 15px 15px 90px 15px !important; /* Espacio extra abajo para la barra del carrito móvil */
+  }
+
+  .top-header {
+    padding: 8px 0 !important;
+    gap: 10px;
+  }
+
+  #btn-mobile-menu {
+    display: flex !important;
+  }
+
+  .header-actions {
+    gap: 8px !important;
+  }
+
+  .quick-status {
+    display: none !important; /* Ocultar estado de caja en pantallas muy pequeñas */
+  }
+
+  /* 3. TERMINAL DE VENTAS (POS) - BOTTOM SHEET MÓVIL */
+  .pos-layout {
+    grid-template-columns: 1fr !important;
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .pos-products {
+    padding-bottom: 20px !important;
+  }
+
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .product-card {
+    padding: 12px !important;
+  }
+
+  .product-card .product-icon-wrapper {
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 20px !important;
+  }
+
+  /* El panel de ticket se comporta como Bottom Sheet deslizable hacia arriba */
+  .pos-ticket-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    background-color: #ffffff !important;
+    z-index: 1020 !important;
+    transform: translateY(100%) !important;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    border-left: none !important;
+    box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.15) !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .pos-ticket-sidebar.active {
+    transform: translateY(0) !important;
+  }
+
+  .ticket-header {
+    padding: 15px 20px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+  }
+
+  #btn-close-ticket-mobile {
+    display: flex !important;
+  }
+
+  /* Mostrar barra del carrito en móviles */
+  .pos-mobile-cart-bar {
+    display: flex !important;
+  }
+
+  /* 4. DASHBOARD Y REPORTES */
+  .stats-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .stat-card {
+    padding: 15px !important;
+  }
+
+  .stat-card .stat-value {
+    font-size: 20px !important;
+  }
+
+  .dashboard-details-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* 5. MODALES Y FORMULARIOS */
+  .modal-content {
+    width: 95% !important;
+    max-width: 95% !important;
+    padding: 20px !important;
+    margin: 10px !important;
+  }
+
+  .modal-content.mini {
+    max-width: 90% !important;
+  }
+
+  /* Ajustes para que quepa el teclado en pantallas chicas */
+  #passcode-modal-content {
+    padding: 15px !important;
+  }
+
+  .numpad-grid {
+    gap: 8px !important;
+  }
+
+  .numpad-btn {
+    padding: 10px !important;
+    font-size: 15px !important;
+  }
+}
+
+/* Ajustes finos para celulares muy angostos */
+@media (max-width: 480px) {
+  .top-header h2 {
+    font-size: 18px !important;
+  }
+
+  .products-grid {
+    grid-template-columns: repeat(2, 1fr) !important; /* Forzar 2 columnas en celulares pequeños */
+    gap: 8px !important;
+  }
+
+  .categories-tabs {
+    padding-bottom: 5px !important;
+  }
+
+  .tab-btn {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+}
