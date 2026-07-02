@@ -1,3 +1,4 @@
+
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -26,29 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initApp();
 });
 
-async function initApp() {
+function initApp() {
   loadStateFromLocalStorage();
-  
-  // Intentar obtener configuración de Supabase desde el backend
-  try {
-    const resConfig = await fetch('/api/config').then(r => r.json());
-    if (resConfig.supabaseUrl && resConfig.supabaseKey && window.supabase) {
-      supabase = window.supabase.createClient(resConfig.supabaseUrl, resConfig.supabaseKey);
-    }
-  } catch (err) {
-    console.warn('No se pudo obtener la configuración de Supabase desde el servidor, usando modo offline.');
-  }
-
-  // Sincronizar con Supabase si está disponible
-  if (supabase) {
-    loadStateFromSupabase();
-  } else {
-    // Si no hay Supabase, sembrar datos locales
-    const wasCleared = localStorage.getItem('p41_cleared');
-    if (state.products.length === 0 && state.suppliers.length === 0 && !wasCleared) {
-      seedData();
-    }
-  }
   
   // Inicializar selector de mes en reportes al mes actual
   const now = new Date();
@@ -62,6 +42,31 @@ async function initApp() {
   updateCurrentDateDisplay();
   navigateTo(selectedView);
   checkLowStockAlerts();
+
+  // Si no hay datos locales, sembrar datos de prueba iniciales de inmediato para no ver pantalla vacía
+  const wasCleared = localStorage.getItem('p41_cleared');
+  if (state.products.length === 0 && state.suppliers.length === 0 && !wasCleared) {
+    seedData();
+    renderAllViews();
+  }
+
+  // Inicializar Supabase de forma asíncrona en segundo plano sin congelar la app
+  initSupabaseAsync();
+}
+
+async function initSupabaseAsync() {
+  try {
+    const resConfig = await fetch('/api/config').then(r => r.json());
+    if (resConfig.supabaseUrl && resConfig.supabaseKey && window.supabase) {
+      supabase = window.supabase.createClient(resConfig.supabaseUrl, resConfig.supabaseKey);
+    }
+  } catch (err) {
+    console.warn('No se pudo obtener la configuración de Supabase desde el servidor, usando modo offline.');
+  }
+
+  if (supabase) {
+    loadStateFromSupabase();
+  }
 }
 
 function loadStateFromLocalStorage() {
