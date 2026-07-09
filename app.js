@@ -1,5 +1,3 @@
-
-
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -1366,7 +1364,17 @@ function executeCheckout() {
       prod.recipe.forEach(recipeItem => {
         const ingredient = state.products.find(p => p.id === recipeItem.id);
         if (ingredient) {
-          ingredient.stock = Math.max(0, Number(ingredient.stock) - (item.quantity * Number(recipeItem.qty)));
+          const ingUnit = ingredient.unit || 'uds';
+          let qtyToSubtract = item.quantity * Number(recipeItem.qty);
+          
+          // Si el insumo está registrado en unidades grandes (kg, l) pero la receta en pequeñas (g, ml)
+          if (ingUnit === 'kg') {
+            qtyToSubtract = qtyToSubtract / 1000; // Gramos a Kilogramos
+          } else if (ingUnit === 'l') {
+            qtyToSubtract = qtyToSubtract / 1000; // Mililitros a Litros
+          }
+          
+          ingredient.stock = Math.max(0, Number(ingredient.stock) - qtyToSubtract);
         }
       });
     } else {
@@ -1813,8 +1821,14 @@ function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') 
     return;
   }
 
+  const getRecipeDisplayUnit = (unit) => {
+    if (unit === 'kg') return 'g';
+    if (unit === 'l') return 'ml';
+    return unit || 'uds';
+  };
+
   const selectedProd = state.products.find(p => p.id === selectedId);
-  const unitText = selectedProd ? (selectedProd.unit || 'uds') : 'uds';
+  const unitText = selectedProd ? getRecipeDisplayUnit(selectedProd.unit) : 'uds';
 
   const row = document.createElement('div');
   row.className = 'recipe-ingredient-row';
@@ -1837,7 +1851,7 @@ function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') 
   // Agregar detector para actualizar la unidad de medida dinámicamente cuando el usuario cambia el insumo
   row.querySelector('.recipe-ing-select').addEventListener('change', (e) => {
     const selected = state.products.find(p => p.id === e.target.value);
-    row.querySelector('.recipe-ing-unit').innerText = selected ? (selected.unit || 'uds') : 'uds';
+    row.querySelector('.recipe-ing-unit').innerText = selected ? getRecipeDisplayUnit(selected.unit) : 'uds';
   });
 
   container.appendChild(row);
@@ -4535,7 +4549,17 @@ function getProductAvailableStock(prod) {
   prod.recipe.forEach(item => {
     const ingredient = state.products.find(p => p.id === item.id);
     if (ingredient) {
-      const availableForThis = Math.floor(Number(ingredient.stock) / Number(item.qty));
+      let ingredientStock = Number(ingredient.stock);
+      const ingUnit = ingredient.unit || 'uds';
+      
+      // Conversión automática de unidades de almacenamiento grandes (kg, l) a sus menores correspondientes (g, ml) en la receta
+      if (ingUnit === 'kg') {
+        ingredientStock = ingredientStock * 1000; // Convertir kg a g
+      } else if (ingUnit === 'l') {
+        ingredientStock = ingredientStock * 1000; // Convertir l a ml
+      }
+      
+      const availableForThis = Math.floor(ingredientStock / Number(item.qty));
       if (availableForThis < minAvailable) {
         minAvailable = availableForThis;
       }
