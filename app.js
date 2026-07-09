@@ -3973,11 +3973,17 @@ function processPDFFile(file) {
         allTextItems = allTextItems.concat(items);
       }
 
-      const rows = groupTextItemsIntoRows(allTextItems);
-      const parsedProducts = parseRowsToProducts(rows);
+      // Intentar primero la extracción estructurada exacta de reportes de Punto 41
+      let parsedProducts = parsePunto41Report(allTextItems);
+      
+      if (!parsedProducts || parsedProducts.length === 0) {
+        // Fallback al parseador genérico por filas horizontales
+        const rows = groupTextItemsIntoRows(allTextItems);
+        parsedProducts = parseRowsToProducts(rows);
+      }
 
       if (parsedProducts.length === 0) {
-        showToast('No se detectaron tablas de productos en el PDF', 'warning');
+        showToast('No se detectaron productos en el PDF. Verifique el formato.', 'warning');
         return;
       }
 
@@ -3989,6 +3995,95 @@ function processPDFFile(file) {
   };
 
   reader.readAsArrayBuffer(file);
+}
+
+// Extractor especializado por coordenadas para reportes del POS (Punto 41)
+function parsePunto41Report(items) {
+  // Buscar elementos que actúan como inicio de fila de producto en la columna SKU (X < 120)
+  // Generalmente tienen el prefijo "P41-" o "P-"
+  const skuStarts = items.filter(item => {
+    const text = item.text.replace(/\s/g, "");
+    return item.x < 120 && (
+      text.includes("P41-") || 
+      text.includes("P41\u002d") || 
+      /^P41\-\d+/.test(text) || 
+      /^P\d+/.test(text)
+    );
+  });
+
+  if (skuStarts.length === 0) {
+    // Intentar buscar números que parezcan códigos en X < 120
+    skuStarts.push(...items.filter(item => item.x < 120 && /^P\d+/i.test(item.text)));
+  }
+
+  if (skuStarts.length === 0) return null;
+
+  // Ordenar de arriba a abajo por coordenada Y
+  skuStarts.sort((a, b) => b.y - a.y);
+
+  // Definir rangos verticales para cada producto
+  const rows = skuStarts.map((start, idx) => ({
+    startY: start.y,
+    endY: idx < skuStarts.length - 1 ? skuStarts[idx + 1].y : -9999,
+    cols: [[], [], [], [], [], []] // 6 columnas lógicas
+  }));
+
+  // Agrupar el resto de ítems en sus respectivas celdas según coordenadas Y e X
+  items.forEach(item => {
+    // Ignorar cabeceras muy superiores
+    if (item.y > skuStarts[0].y + 15) return;
+
+    // Encontrar fila correspondiente
+    const row = rows.find(r => item.y <= r.startY + 8 && item.y > r.endY + 8);
+    if (!row) return;
+
+    // Clasificar columna según coordenada X
+    let colIdx = -1;
+    if (item.x < 120) colIdx = 0; // SKU
+    else if (item.x >= 120 && item.x < 240) colIdx = 1; // Producto
+    else if (item.x >= 240 && item.x < 340) colIdx = 2; // Categoría
+    else if (item.x >= 340 && item.x < 430) colIdx = 3; // Costo
+    else if (item.x >= 430 && item.x < 510) colIdx = 4; // Venta
+    else colIdx = 5; // Stock
+
+    row.cols[colIdx].push(item);
+  });
+
+  const products = [];
+  rows.forEach(row => {
+    // Ordenar elementos internos de cada celda
+    row.cols.forEach(col => {
+      col.sort((a, b) => {
+        if (Math.abs(a.y - b.y) < 3) return a.x - b.x;
+        return b.y - a.y;
+      });
+    });
+
+    // Reconstruir textos de celdas
+    const sku = row.cols[0].map(item => item.text).join("").replace(/\s/g, "");
+    const name = row.cols[1].map(item => item.text).join(" ").replace(/\s+/g, " ").trim();
+    const category = row.cols[2].map(item => item.text).join(" ").replace(/\s+/g, " ").trim();
+    const costStr = row.cols[3].map(item => item.text).join("").replace(/[^0-9]/g, "");
+    const saleStr = row.cols[4].map(item => item.text).join("").replace(/[^0-9]/g, "");
+    const stockStr = row.cols[5].map(item => item.text).join("").replace(/[^0-9\-]/g, "");
+
+    const costPrice = parseInt(costStr, 10) || 0;
+    const salePrice = parseInt(saleStr, 10) || 0;
+    const stock = parseInt(stockStr, 10) || 0;
+
+    if (name && name.length > 2 && (costPrice > 0 || salePrice > 0)) {
+      products.push({
+        name,
+        sku: sku || 'PDF-' + Math.floor(1000 + Math.random() * 9000),
+        category: category || 'Repostería',
+        costPrice,
+        salePrice,
+        quantity: stock
+      });
+    }
+  });
+
+  return products;
 }
 
 // Agrupar items de texto por coordenadas horizontales (líneas de filas)
@@ -4161,8 +4256,14 @@ function renderPDFPreviewTable(products) {
       : '<span class="badge-import-status new">Nuevo</span>';
 
     const finalSku = existing ? existing.sku : prod.sku;
-    const finalCategory = existing ? existing.category : categories[0];
-    const finalSalePrice = existing ? existing.salePrice : Math.round(prod.costPrice * 1.5);
+    
+    // Si la categoría extraída del PDF no está en la lista del sistema, la agregamos al selector
+    if (prod.category && !categories.includes(prod.category)) {
+      categories.push(prod.category);
+    }
+
+    const finalCategory = existing ? existing.category : (prod.category || categories[0]);
+    const finalSalePrice = existing ? existing.salePrice : (prod.salePrice || Math.round(prod.costPrice * 1.5));
 
     const row = document.createElement('tr');
     row.innerHTML = `
