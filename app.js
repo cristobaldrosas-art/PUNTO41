@@ -4206,6 +4206,29 @@ async function loadStateFromSupabase() {
     // Ordenar ventas por fecha descendente
     state.sales = (resSal.data || []).sort((a, b) => new Date(b.date) - new Date(a.date));
 
+    // Descargar configuración global de TUU de manera defensiva (no rompe la sincronización si la tabla configs no existe todavía)
+    try {
+      const { data: cfgData, error: cfgError } = await supabaseClient.from('configs').select('*').eq('key', 'system_settings');
+      if (!cfgError && cfgData && cfgData.length > 0) {
+        const cfg = cfgData[0].value;
+        if (cfg) {
+          localStorage.setItem('p41_tuu_apikey', cfg.tuuApiKey || '');
+          localStorage.setItem('p41_tuu_device', cfg.tuuDevice || '');
+          localStorage.setItem('p41_tuu_active', cfg.tuuActive ? 'true' : 'false');
+          
+          const tuuApiKeyInput = document.getElementById('settings-tuu-apikey');
+          const tuuDeviceInput = document.getElementById('settings-tuu-device');
+          const tuuActiveCheckbox = document.getElementById('settings-tuu-active');
+          
+          if (tuuApiKeyInput) tuuApiKeyInput.value = cfg.tuuApiKey || '';
+          if (tuuDeviceInput) tuuDeviceInput.value = cfg.tuuDevice || '';
+          if (tuuActiveCheckbox) tuuActiveCheckbox.checked = !!cfg.tuuActive;
+        }
+      }
+    } catch (cfgErr) {
+      console.warn('Tabla configs no disponible o error al consultar configs en Supabase:', cfgErr);
+    }
+
     // Si todo está vacío (y no hay registros en localstorage), sembramos datos de demostración y los subimos
     if (state.products.length === 0 && state.suppliers.length === 0) {
       const wasCleared = localStorage.getItem('p41_cleared');
@@ -4257,6 +4280,26 @@ async function syncStateToSupabase() {
       const { error } = await supabaseClient.from('sales').upsert(state.sales);
       if (error) throw error;
     }
+
+    // Sincronizar configuraciones globales de TUU de manera defensiva
+    try {
+      const tuuApiKey = localStorage.getItem('p41_tuu_apikey') || '';
+      const tuuDevice = localStorage.getItem('p41_tuu_device') || '';
+      const tuuActive = localStorage.getItem('p41_tuu_active') === 'true';
+
+      const settingsObj = {
+        key: 'system_settings',
+        value: {
+          tuuApiKey,
+          tuuDevice,
+          tuuActive
+        }
+      };
+      await supabaseClient.from('configs').upsert([settingsObj]);
+    } catch (cfgErr) {
+      console.warn('No se pudo guardar la configuración en la tabla configs de Supabase:', cfgErr);
+    }
+
     console.log('Datos guardados y sincronizados con éxito en Supabase.');
   } catch (error) {
     console.error('Error al subir datos a Supabase:', error);
