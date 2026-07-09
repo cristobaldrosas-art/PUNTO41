@@ -1,3 +1,4 @@
+
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -3999,21 +4000,57 @@ function processPDFFile(file) {
 
 // Extractor especializado por coordenadas para reportes del POS (Punto 41)
 function parsePunto41Report(items) {
-  // Buscar elementos que actúan como inicio de fila de producto en la columna SKU (X < 120)
-  // Generalmente tienen el prefijo "P41-" o "P-"
+  // Buscar cabeceras para calibrar automáticamente las coordenadas horizontales (X)
+  const skuItem = items.find(item => item.text.replace(/\s/g, "").toLowerCase() === "sku");
+  const prodItem = items.find(item => item.text.replace(/\s/g, "").toLowerCase() === "producto");
+  const catItem = items.find(item => {
+    const t = item.text.replace(/\s/g, "").toLowerCase();
+    return t === "categoría" || t === "categoria";
+  });
+  const costItem = items.find(item => item.text.replace(/\s/g, "").toLowerCase() === "costo");
+  const saleItem = items.find(item => item.text.replace(/\s/g, "").toLowerCase() === "venta");
+  const stockItem = items.find(item => item.text.replace(/\s/g, "").toLowerCase() === "stock");
+
+  // Coordenadas límite de división por defecto
+  let mid0_1 = 120;
+  let mid1_2 = 240;
+  let mid2_3 = 340;
+  let mid3_4 = 430;
+  let mid4_5 = 510;
+
+  // Calibrar dinámicamente si se encuentran las cabeceras (resiste cualquier margen de impresión o tamaño A4/Carta)
+  if (skuItem && prodItem && catItem && costItem && saleItem && stockItem) {
+    mid0_1 = (skuItem.x + prodItem.x) / 2;
+    mid1_2 = (prodItem.x + catItem.x) / 2;
+    mid2_3 = (catItem.x + costItem.x) / 2;
+    mid3_4 = (costItem.x + saleItem.x) / 2;
+    mid4_5 = (saleItem.x + stockItem.x) / 2;
+  }
+
+  // Buscar elementos que actúan como inicio de fila de producto en la columna SKU (X < mid0_1)
   const skuStarts = items.filter(item => {
     const text = item.text.replace(/\s/g, "");
-    return item.x < 120 && (
+    const lowerText = text.toLowerCase();
+    
+    // Ignorar si coincide con las cabeceras
+    if (lowerText === "sku" || lowerText === "producto" || lowerText === "categoría" || lowerText === "categoria" || lowerText === "costo" || lowerText === "venta" || lowerText === "stock") {
+      return false;
+    }
+    
+    return item.x < mid0_1 && (
       text.includes("P41-") || 
       text.includes("P41\u002d") || 
       /^P41\-\d+/.test(text) || 
-      /^P\d+/.test(text)
+      /^[a-zA-Z0-9]+\-\d+/.test(text)
     );
   });
 
   if (skuStarts.length === 0) {
-    // Intentar buscar números que parezcan códigos en X < 120
-    skuStarts.push(...items.filter(item => item.x < 120 && /^P\d+/i.test(item.text)));
+    skuStarts.push(...items.filter(item => {
+      const text = item.text.trim();
+      if (text.toLowerCase() === "sku" || text.length < 2) return false;
+      return item.x < mid0_1 && /^[a-zA-Z0-9\-]+$/.test(text);
+    }));
   }
 
   if (skuStarts.length === 0) return null;
@@ -4037,13 +4074,13 @@ function parsePunto41Report(items) {
     const row = rows.find(r => item.y <= r.startY + 8 && item.y > r.endY + 8);
     if (!row) return;
 
-    // Clasificar columna según coordenada X
+    // Clasificar columna según coordenadas horizontales calibradas
     let colIdx = -1;
-    if (item.x < 120) colIdx = 0; // SKU
-    else if (item.x >= 120 && item.x < 240) colIdx = 1; // Producto
-    else if (item.x >= 240 && item.x < 340) colIdx = 2; // Categoría
-    else if (item.x >= 340 && item.x < 430) colIdx = 3; // Costo
-    else if (item.x >= 430 && item.x < 510) colIdx = 4; // Venta
+    if (item.x < mid0_1) colIdx = 0; // SKU
+    else if (item.x >= mid0_1 && item.x < mid1_2) colIdx = 1; // Producto
+    else if (item.x >= mid1_2 && item.x < mid2_3) colIdx = 2; // Categoría
+    else if (item.x >= mid2_3 && item.x < mid3_4) colIdx = 3; // Costo
+    else if (item.x >= mid3_4 && item.x < mid4_5) colIdx = 4; // Venta
     else colIdx = 5; // Stock
 
     row.cols[colIdx].push(item);
