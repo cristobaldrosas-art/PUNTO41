@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    SISTEMA DE DISEÑO Y HOJA DE ESTILOS PRINCIPAL
@@ -1898,24 +1897,26 @@ a {
     font-size: 20px !important;
   }
 
-  /* El panel de ticket se comporta como Bottom Sheet deslizable hacia arriba */
+  /* El panel de ticket se comporta como Bottom Sheet deslizable hacia arriba estilo iOS */
   .pos-ticket-sidebar {
     position: fixed !important;
-    top: 0 !important;
+    top: 8% !important;
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
     width: 100% !important;
-    height: 100% !important;
-    max-height: 100% !important;
+    height: 92% !important;
+    max-height: 92% !important;
     background-color: #ffffff !important;
     z-index: 1020 !important;
     transform: translateY(100%) !important;
     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
     border-left: none !important;
-    box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.15) !important;
+    border-radius: 20px 20px 0 0 !important;
+    box-shadow: 0 -15px 35px rgba(15, 23, 42, 0.2) !important;
     display: flex !important;
     flex-direction: column !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
   }
 
   .pos-ticket-sidebar.active {
@@ -1923,17 +1924,24 @@ a {
   }
 
   .ticket-header {
-    padding: 15px 20px !important;
+    padding: 8px 20px 15px 20px !important;
     border-bottom: 1px solid var(--border-color) !important;
+  }
+
+  .mobile-sheet-handle {
+    display: block !important;
   }
 
   #btn-close-ticket-mobile {
     display: flex !important;
   }
 
-  /* Mostrar barra del carrito en móviles */
+  /* Mostrar barra del carrito en móviles justo sobre la TabBar */
   .pos-mobile-cart-bar {
     display: flex !important;
+    bottom: 65px !important;
+    border-radius: 12px 12px 0 0 !important;
+    box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.08) !important;
   }
 
   /* 4. DASHBOARD Y REPORTES */
@@ -1955,12 +1963,78 @@ a {
     gap: 16px !important;
   }
 
+  /* Barra de Pestañas Inferior (TabBar) */
+  .mobile-tab-bar {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 65px !important;
+    background-color: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.8) !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    z-index: 1000 !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+    box-shadow: 0 -4px 12px rgba(15, 23, 42, 0.03) !important;
+  }
+
+  .mobile-tab-bar .tab-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 !important;
+    height: 100% !important;
+    color: var(--text-muted) !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    gap: 4px !important;
+    transition: var(--transition) !important;
+    text-decoration: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .mobile-tab-bar .tab-item i {
+    font-size: 20px !important;
+    transition: transform 0.2s ease !important;
+  }
+
+  .mobile-tab-bar .tab-item.active {
+    color: var(--primary) !important;
+    font-weight: 700 !important;
+  }
+
+  .mobile-tab-bar .tab-item.active i {
+    transform: scale(1.15) !important;
+  }
+
+  /* Scroll horizontal para las pestañas de categorías */
+  .categories-tabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 8px !important;
+    padding: 5px 2px 10px 2px !important;
+  }
+  .categories-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+  .tab-btn {
+    flex-shrink: 0 !important;
+  }
+
   /* 5. MODALES Y FORMULARIOS */
   .modal-content {
     width: 95% !important;
     max-width: 95% !important;
     padding: 20px !important;
     margin: 10px !important;
+    border-radius: var(--radius-lg) !important;
   }
 
   .modal-content.mini {
