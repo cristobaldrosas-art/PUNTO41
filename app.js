@@ -131,6 +131,19 @@ function loadStateFromLocalStorage() {
   if (rutInput) rutInput.value = siiRut;
   if (claveInput) claveInput.value = siiClave;
 
+  // Cargar configuración de TUU (Haulmer)
+  const tuuApiKey = localStorage.getItem('p41_tuu_apikey') || '';
+  const tuuDevice = localStorage.getItem('p41_tuu_device') || '';
+  const tuuActive = localStorage.getItem('p41_tuu_active') === 'true';
+  
+  const tuuApiKeyInput = document.getElementById('settings-tuu-apikey');
+  const tuuDeviceInput = document.getElementById('settings-tuu-device');
+  const tuuActiveCheckbox = document.getElementById('settings-tuu-active');
+  
+  if (tuuApiKeyInput) tuuApiKeyInput.value = tuuApiKey;
+  if (tuuDeviceInput) tuuDeviceInput.value = tuuDevice;
+  if (tuuActiveCheckbox) tuuActiveCheckbox.checked = tuuActive;
+
   // Verificar estado de conexión en la nube inicial
   if (eboletaActive) {
     setTimeout(checkSIIConnectionStatus, 1000);
@@ -162,6 +175,15 @@ function saveStateToLocalStorage() {
   const claveInput = document.getElementById('settings-sii-clave');
   if (rutInput) localStorage.setItem('p41_sii_rut', rutInput.value);
   if (claveInput) localStorage.setItem('p41_sii_clave', claveInput.value);
+
+  // Guardar configuración de TUU
+  const tuuApiKeyInput = document.getElementById('settings-tuu-apikey');
+  const tuuDeviceInput = document.getElementById('settings-tuu-device');
+  const tuuActiveCheckbox = document.getElementById('settings-tuu-active');
+
+  if (tuuApiKeyInput) localStorage.setItem('p41_tuu_apikey', tuuApiKeyInput.value);
+  if (tuuDeviceInput) localStorage.setItem('p41_tuu_device', tuuDeviceInput.value);
+  if (tuuActiveCheckbox) localStorage.setItem('p41_tuu_active', tuuActiveCheckbox.checked ? 'true' : 'false');
 
   // Sincronizar en segundo plano con Supabase Cloud
   if (supabaseClient) {
@@ -547,6 +569,27 @@ function setupEventListeners() {
   const eboletaCheckbox = document.getElementById('settings-eboleta-active');
   if (eboletaCheckbox) {
     eboletaCheckbox.addEventListener('change', () => {
+      saveStateToLocalStorage();
+    });
+  }
+
+  // Guardar configuración de TUU al cambiar
+  const tuuActiveCheckbox = document.getElementById('settings-tuu-active');
+  const tuuApiKeyInput = document.getElementById('settings-tuu-apikey');
+  const tuuDeviceInput = document.getElementById('settings-tuu-device');
+
+  if (tuuActiveCheckbox) {
+    tuuActiveCheckbox.addEventListener('change', () => {
+      saveStateToLocalStorage();
+    });
+  }
+  if (tuuApiKeyInput) {
+    tuuApiKeyInput.addEventListener('input', () => {
+      saveStateToLocalStorage();
+    });
+  }
+  if (tuuDeviceInput) {
+    tuuDeviceInput.addEventListener('input', () => {
       saveStateToLocalStorage();
     });
   }
@@ -1438,6 +1481,18 @@ function executeCheckout() {
     clientPointsBalance: client ? client.points : 0
   };
 
+  // Integración de pago con Tarjeta por POS TUU (Haulmer)
+  const tuuActive = localStorage.getItem('p41_tuu_active') === 'true';
+  if (tuuActive && paymentMethod === 'tarjeta') {
+    startTuuPayment(finalTotal, paymentMethod, newSale, client, pointsEarned);
+  } else {
+    // Si no está activo TUU o es efectivo/transferencia, completar la venta directo
+    completeCheckoutFinal(newSale, finalTotal, paymentMethod, client, pointsEarned);
+  }
+}
+
+// Completar la venta final, descontar inventario (ya hecho antes), emitir boleta en SII si aplica e imprimir voucher
+function completeCheckoutFinal(newSale, finalTotal, paymentMethod, client, pointsEarned) {
   state.sales.push(newSale);
   saveStateToLocalStorage();
 
@@ -1496,6 +1551,147 @@ function executeCheckout() {
   checkLowStockAlerts();
 
   printReceipt(newSale);
+}
+
+// Variables globales para la encuesta (polling) de pago TUU
+let tuuPollInterval = null;
+let tuuCancelRequested = false;
+
+// Manejo del cobro remoto mediante la API de TUU (Haulmer)
+function startTuuPayment(finalTotal, paymentMethod, newSale, client, pointsEarned) {
+  const apiKey = localStorage.getItem('p41_tuu_apikey');
+  const device = localStorage.getItem('p41_tuu_device');
+  
+  if (!apiKey || !device) {
+    showToast('Error TUU: Debes configurar la API Key y el Nº de Serie en la sección de Ajustes.', 'danger');
+    return;
+  }
+
+  // Generar clave de idempotencia única para la transacción (UUID v4)
+  const idempotencyKey = 'uuid-' + Date.now() + '-' + Math.floor(Math.random() * 1000000);
+  tuuCancelRequested = false;
+
+  // Cargar y mostrar modal del proceso de cobro TUU
+  const modal = document.getElementById('tuu-payment-modal');
+  const statusText = document.getElementById('tuu-modal-status');
+  const amountText = document.getElementById('tuu-modal-amount');
+  const iconWrapper = document.getElementById('tuu-modal-icon-wrapper');
+  const icon = document.getElementById('tuu-modal-icon');
+
+  if (modal) modal.classList.add('active');
+  if (amountText) amountText.innerText = `$${Math.round(finalTotal).toLocaleString('es-CL')}`;
+  if (statusText) statusText.innerText = 'Iniciando solicitud de cobro en tu máquina POS TUU...';
+  
+  if (iconWrapper) {
+    iconWrapper.style.backgroundColor = 'rgba(37, 99, 235, 0.1)';
+    iconWrapper.style.color = 'var(--primary)';
+  }
+  if (icon) {
+    icon.className = 'fa-solid fa-spinner fa-spin';
+  }
+
+  // Configurar botón de cancelar cobro en el modal
+  const cancelBtn = document.getElementById('btn-tuu-cancel');
+  if (cancelBtn) {
+    // Clonar para limpiar eventos de cobros anteriores
+    const newBtn = cancelBtn.cloneNode(true);
+    cancelBtn.parentNode.replaceChild(newBtn, cancelBtn);
+    newBtn.addEventListener('click', () => {
+      tuuCancelRequested = true;
+      clearInterval(tuuPollInterval);
+      closeModal('tuu-payment-modal');
+      showToast('Cobro por máquina TUU cancelado por el usuario.', 'warning');
+    });
+  }
+
+  // Enviar orden de cobro a través de nuestro proxy de Node.js
+  fetch('/api/tuu/pay', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      amount: finalTotal,
+      device: device,
+      apiKey: apiKey,
+      idempotencyKey: idempotencyKey,
+      description: `Venta POS Punto 41 #${newSale.id}`
+    })
+  })
+  .then(res => {
+    if (!res.ok) {
+      return res.json().then(data => { throw new Error(data.error || 'Error de conexión'); });
+    }
+    return res.json();
+  })
+  .then(data => {
+    // Orden recibida por la máquina. Comenzar a consultar (polling) el estado del cobro
+    if (statusText) statusText.innerText = 'Cobro enviado. Deslice o acerque la tarjeta en la máquina TUU...';
+    
+    tuuPollInterval = setInterval(() => {
+      if (tuuCancelRequested) return;
+
+      fetch(`/api/tuu/status/${idempotencyKey}`, {
+        method: 'GET',
+        headers: { 'x-api-key': apiKey }
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('Error al obtener estado');
+        return res.json();
+      })
+      .then(statusData => {
+        if (tuuCancelRequested) return;
+
+        const currentStatus = statusData.status;
+        console.log("Estado de cobro en POS TUU:", currentStatus);
+
+        // 5 = Completed (Aprobado y finalizado)
+        if (currentStatus === 5 || currentStatus === 'Completed') {
+          clearInterval(tuuPollInterval);
+          
+          if (statusText) statusText.innerText = '¡Cobro autorizado exitosamente!';
+          if (iconWrapper) {
+            iconWrapper.style.backgroundColor = 'rgba(34, 197, 94, 0.1)';
+            iconWrapper.style.color = '#22c55e';
+          }
+          if (icon) icon.className = 'fa-solid fa-circle-check';
+
+          setTimeout(() => {
+            closeModal('tuu-payment-modal');
+            // Al ser tarjeta, wantsBoleta = false (el voucher actúa como boleta por ley en Chile)
+            completeCheckoutFinal(newSale, finalTotal, paymentMethod, client, pointsEarned);
+          }, 1500);
+
+        // 2 = Canceled (Cancelado en POS), 4 = Failed (Rechazado/Error)
+        } else if (currentStatus === 2 || currentStatus === 'Canceled' || currentStatus === 4 || currentStatus === 'Failed') {
+          clearInterval(tuuPollInterval);
+          
+          if (statusText) statusText.innerText = 'Transacción rechazada o cancelada en el POS.';
+          if (iconWrapper) {
+            iconWrapper.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+            iconWrapper.style.color = '#ef4444';
+          }
+          if (icon) icon.className = 'fa-solid fa-circle-xmark';
+
+          showToast('Pago rechazado o cancelado en la máquina TUU.', 'danger');
+
+          setTimeout(() => {
+            closeModal('tuu-payment-modal');
+          }, 2000);
+
+        // 3 = Processing
+        } else if (currentStatus === 3 || currentStatus === 'Processing') {
+          if (statusText) statusText.innerText = 'Procesando transacción bancaria...';
+        }
+      })
+      .catch(err => {
+        console.error('Error de red al consultar estado de TUU:', err);
+      });
+    }, 2000);
+  })
+  .catch(err => {
+    clearInterval(tuuPollInterval);
+    closeModal('tuu-payment-modal');
+    showToast(`Error al iniciar cobro en POS: ${err.message}`, 'danger');
+  });
 }
 
 // --- IMPRESIÓN DE COMPROBANTE ---
