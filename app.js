@@ -1895,10 +1895,13 @@ function updateModalRecipeCost() {
   const posVisible = posVisibleEl ? posVisibleEl.checked : true;
   const costInput = document.getElementById('product-cost-price');
   const stockInput = document.getElementById('product-stock');
-  if (!costInput || !stockInput) return;
+  if (!costInput || !stockInput) {
+    console.warn("No se encontraron los inputs de costo o stock en el modal.");
+    return;
+  }
 
   if (!posVisible) {
-    // Si no está visible en el POS (es insumo), desbloquear costo y stock para entrada manual
+    console.log("El producto es un insumo (no visible en POS). Desbloqueando edición manual.");
     costInput.readOnly = false;
     costInput.style.backgroundColor = '';
     costInput.style.cursor = '';
@@ -1910,12 +1913,25 @@ function updateModalRecipeCost() {
   }
 
   const rows = document.querySelectorAll('.recipe-ingredient-row');
+  console.log("Ejecutando updateModalRecipeCost. Filas de ingredientes encontradas:", rows.length);
+  
   let totalCost = 0;
   let minAvailable = Infinity;
 
-  rows.forEach(row => {
-    const ingId = row.querySelector('.recipe-ing-select').value;
-    const ingQty = Number(row.querySelector('.recipe-ing-qty').value);
+  rows.forEach((row, index) => {
+    const ingSelect = row.querySelector('.recipe-ing-select');
+    const ingQtyInput = row.querySelector('.recipe-ing-qty');
+    
+    if (!ingSelect || !ingQtyInput) {
+      console.warn(`Fila ${index}: no se encontró el select o el input de cantidad.`);
+      return;
+    }
+
+    const ingId = ingSelect.value;
+    const ingQty = Number(ingQtyInput.value) || 0;
+    
+    console.log(`Fila ${index} -> ingId: "${ingId}", ingQty: ${ingQty}`);
+
     if (ingId && ingQty > 0) {
       const ingredient = state.products.find(p => p.id === ingId);
       if (ingredient) {
@@ -1925,7 +1941,8 @@ function updateModalRecipeCost() {
         if (ingUnit === 'kg' || ingUnit === 'l') {
           ingCost = ingCost / 1000; // kg -> g, l -> ml
         }
-        totalCost += ingCost * ingQty;
+        const rowCostContribution = ingCost * ingQty;
+        totalCost += rowCostContribution;
 
         // 2. Calcular Fracción de Stock Disponible
         let ingredientStock = Number(ingredient.stock) || 0;
@@ -1933,26 +1950,37 @@ function updateModalRecipeCost() {
           ingredientStock = ingredientStock * 1000; // kg -> g, l -> ml
         }
         const availableForThis = Math.floor(ingredientStock / ingQty);
+        
+        console.log(`Insumo: "${ingredient.name}", Stock DB: ${ingredient.stock} ${ingUnit} (calc: ${ingredientStock}), Costo base DB: ${ingredient.costPrice} (calc: ${ingCost}), Aporta Stock: ${availableForThis}, Aporta Costo: ${rowCostContribution}`);
+
         if (availableForThis < minAvailable) {
           minAvailable = availableForThis;
         }
+      } else {
+        console.warn(`No se encontró el insumo con ID "${ingId}" en state.products.`);
       }
     }
   });
 
   if (rows.length > 0) {
+    const finalCost = Math.round(totalCost);
+    const finalStock = minAvailable === Infinity ? 0 : minAvailable;
+    
+    console.log(`Resultado final -> Costo calculado: ${finalCost}, Stock calculado: ${finalStock}`);
+
     // Bloquear y autocalcular Costo
-    costInput.value = Math.round(totalCost);
+    costInput.value = finalCost;
     costInput.readOnly = true;
     costInput.style.backgroundColor = '#f1f5f9';
     costInput.style.cursor = 'not-allowed';
 
     // Bloquear y autocalcular Stock
-    stockInput.value = minAvailable === Infinity ? 0 : minAvailable;
+    stockInput.value = finalStock;
     stockInput.readOnly = true;
     stockInput.style.backgroundColor = '#f1f5f9';
     stockInput.style.cursor = 'not-allowed';
   } else {
+    console.log("No hay ingredientes en la receta. Desbloqueando inputs para edición manual.");
     // Si no hay receta, desbloquear ambos para edición manual
     costInput.readOnly = false;
     costInput.style.backgroundColor = '';
