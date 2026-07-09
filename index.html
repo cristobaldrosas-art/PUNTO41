@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -667,38 +666,11 @@
               <input type="file" id="import-file-input" style="display: none;" accept=".json" onchange="importBackup(event)">
             </div>
 
-            <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 15px;">
-              <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-file-invoice-dollar" style="color: var(--primary);"></i> Integración Nube e-boleta SII</h4>
-              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 15px 0;">
-                Configura la emisión automatizada en la nube a través del portal de e-boleta del SII. Las ventas se declararán de forma invisible al confirmar el checkout.
-              </p>
-              
-              <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
-                <div style="display: flex; gap: 10px;">
-                  <div style="flex: 1;">
-                    <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px;">RUT Contribuyente / Emisor</label>
-                    <input type="text" id="settings-sii-rut" placeholder="12.345.678-9" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background-color: var(--bg-card); color: var(--text-main); font-size: 12px; font-family: 'Outfit'; outline: none;">
-                  </div>
-                  <div style="flex: 1;">
-                    <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px;">Clave Tributaria SII</label>
-                    <input type="password" id="settings-sii-clave" placeholder="••••••••" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background-color: var(--bg-card); color: var(--text-main); font-size: 12px; font-family: 'Outfit'; outline: none;">
-                  </div>
-                </div>
 
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 6px; user-select: none;">
-                  <input type="checkbox" id="settings-eboleta-active"> Activar emisión automática en la nube
-                </label>
-              </div>
 
-              <div style="border-top: 1px solid var(--border-color); padding-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px;">
-                <div id="settings-sii-status" style="font-size: 12px; font-weight: 600; color: var(--danger);">
-                  <i class="fa-solid fa-circle" style="font-size: 8px; margin-right: 4px; vertical-align: middle;"></i> Desconectado
-                </div>
-                <button type="button" class="btn btn-primary" id="btn-sii-connect" style="font-size: 12px; padding: 8px 16px; display: flex; align-items: center; gap: 6px;">
-                  <i class="fa-solid fa-plug"></i> Conectar con el SII
-                </button>
-              </div>
-            </div>
+            <button class="btn btn-primary" onclick="saveStateToLocalStorage(true)" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; font-weight: 700; padding: 12px; margin: 5px 0;">
+              <i class="fa-solid fa-floppy-disk"></i> Guardar Todos los Ajustes
+            </button>
             
             <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 15px;">
               <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-credit-card" style="color: var(--primary);"></i> Integración POS TUU (Haulmer)</h4>
@@ -742,32 +714,7 @@
 
   <!-- ================= MODALS ================= -->
 
-  <!-- SII CAPTCHA Modal -->
-  <div class="modal-overlay" id="sii-captcha-modal" style="z-index: 1200;">
-    <div class="modal-content mini" style="max-width: 320px; padding: 25px; text-align: center; border-radius: var(--radius-md); border: 1px solid var(--border-color); background-color: #ffffff;">
-      <div style="margin-bottom: 20px;">
-        <div style="background-color: rgba(29, 78, 216, 0.1); color: var(--primary); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
-          <i class="fa-solid fa-shield-halved" style="font-size: 22px;"></i>
-        </div>
-        <h3 style="margin: 0 0 6px 0; font-size: 17px; font-weight: 700; color: var(--text-main);">Seguridad SII</h3>
-        <p style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">El SII solicita validar la imagen de seguridad para continuar.</p>
-      </div>
 
-      <!-- CAPTCHA Image Container -->
-      <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; min-height: 80px;">
-        <img id="sii-captcha-img" src="" alt="Cargando CAPTCHA..." style="max-width: 100%; max-height: 70px; border-radius: var(--radius-xs);">
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <input type="text" id="sii-captcha-input" placeholder="Escribe el texto de la imagen..." style="width: 100%; text-align: center; font-size: 16px; font-weight: 600; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background-color: var(--bg-app); color: var(--text-main); outline: none; text-transform: uppercase;">
-      </div>
-
-      <div style="display: flex; gap: 10px;">
-        <button type="button" class="btn btn-secondary" onclick="closeModal('sii-captcha-modal')" style="flex: 1; font-size: 13px;">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btn-sii-submit-captcha" style="flex: 1; font-size: 13px;">Verificar</button>
-      </div>
-    </div>
-  </div>
 
   <!-- TUU PAYMENT Modal -->
   <div class="modal-overlay" id="tuu-payment-modal" style="z-index: 1150;">
