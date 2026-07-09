@@ -1486,12 +1486,12 @@ function executeCheckout() {
     clientPointsBalance: client ? client.points : 0
   };
 
-  // Integración de pago con Tarjeta por POS TUU (Haulmer)
+  // Integración de pago por POS TUU (Haulmer) para Tarjeta, Efectivo y Transferencia
   const tuuActive = localStorage.getItem('p41_tuu_active') === 'true';
-  if (tuuActive && paymentMethod === 'tarjeta') {
+  if (tuuActive && (paymentMethod === 'tarjeta' || paymentMethod === 'efectivo' || paymentMethod === 'transferencia')) {
     startTuuPayment(finalTotal, paymentMethod, newSale, client, pointsEarned);
   } else {
-    // Si no está activo TUU o es efectivo/transferencia, completar la venta directo
+    // Si no está activo TUU, completar la venta directo
     completeCheckoutFinal(newSale, finalTotal, paymentMethod, client, pointsEarned);
   }
 }
@@ -1589,7 +1589,7 @@ function startTuuPayment(finalTotal, paymentMethod, newSale, client, pointsEarne
       device: device,
       apiKey: apiKey,
       idempotencyKey: idempotencyKey,
-      description: `Venta POS Punto 41 #${newSale.id}`
+      description: `Venta ${paymentMethod === 'efectivo' ? 'Efectivo' : (paymentMethod === 'transferencia' ? 'Transferencia' : 'Tarjeta')} POS Punto 41 #${newSale.id}`
     })
   })
   .then(res => {
@@ -1600,7 +1600,15 @@ function startTuuPayment(finalTotal, paymentMethod, newSale, client, pointsEarne
   })
   .then(data => {
     // Orden recibida por la máquina. Comenzar a consultar (polling) el estado del cobro
-    if (statusText) statusText.innerText = 'Cobro enviado. Deslice o acerque la tarjeta en la máquina TUU...';
+    if (statusText) {
+      if (paymentMethod === 'efectivo') {
+        statusText.innerText = 'Cobro enviado. Seleccione \'Pagar con Efectivo\' en la máquina TUU...';
+      } else if (paymentMethod === 'transferencia') {
+        statusText.innerText = 'Cobro enviado. Seleccione \'Pagar con Transferencia\' o equivalente en la máquina TUU...';
+      } else {
+        statusText.innerText = 'Cobro enviado. Deslice o acerque la tarjeta en la máquina TUU...';
+      }
+    }
     
     tuuPollInterval = setInterval(() => {
       if (tuuCancelRequested) return;
@@ -1831,8 +1839,83 @@ function viewSaleDetails(saleId) {
     printReceipt(sale);
   });
 
+  const voidBtn = document.getElementById('btn-void-sale');
+  if (voidBtn) {
+    const newVoidBtn = voidBtn.cloneNode(true);
+    voidBtn.parentNode.replaceChild(newVoidBtn, voidBtn);
+    newVoidBtn.addEventListener('click', () => {
+      voidSale(sale.id);
+    });
+  }
+
   document.getElementById('sale-detail-modal').classList.add('active');
 }
+
+// Revertir una venta completada (anular)
+async function voidSale(saleId) {
+  const sale = state.sales.find(s => s.id === saleId);
+  if (!sale) return;
+
+  const confirmVoid = confirm(`¿Está seguro de que desea anular la venta ${sale.id}? Esta acción devolverá los productos vendidos al stock de inventario, revertirá los puntos de cliente y eliminará el registro.`);
+  if (!confirmVoid) return;
+
+  try {
+    // 1. Revertir stock de inventario
+    sale.items.forEach(item => {
+      const prod = state.products.find(p => p.id === item.productId);
+      if (!prod) return;
+
+      if (prod.recipe && prod.recipe.length > 0) {
+        prod.recipe.forEach(recipeItem => {
+          const ingredient = state.products.find(p => p.id === recipeItem.id);
+          if (ingredient) {
+            const ingUnit = ingredient.unit || 'uds';
+            let qtyToAdd = item.quantity * Number(recipeItem.qty);
+            if (ingUnit === 'kg' || ingUnit === 'l') {
+              qtyToAdd = qtyToAdd / 1000;
+            }
+            ingredient.stock = Number(ingredient.stock) + qtyToAdd;
+          }
+        });
+      } else {
+        prod.stock = Number(prod.stock) + item.quantity;
+      }
+    });
+
+    // 2. Revertir puntos de cliente
+    if (sale.clientId) {
+      const client = state.clients.find(c => c.id === sale.clientId);
+      if (client) {
+        // Devolver puntos que usó
+        client.points = Number(client.points) + Number(sale.pointsRedeemed || 0);
+        // Quitar puntos que ganó
+        client.points = Math.max(0, Number(client.points) - Number(sale.pointsEarned || 0));
+      }
+    }
+
+    // 3. Eliminar de Supabase (si está configurado)
+    if (supabaseClient) {
+      const { error } = await supabaseClient.from('sales').delete().eq('id', sale.id);
+      if (error) {
+        console.error("Error al borrar venta en la base de datos de Supabase:", error);
+      }
+    }
+
+    // 4. Eliminar de la lista local
+    state.sales = state.sales.filter(s => s.id !== sale.id);
+
+    // 5. Guardar estado y sincronizar
+    saveStateToLocalStorage();
+
+    closeModal('sale-detail-modal');
+    showToast(`Venta ${sale.id} anulada con éxito. Inventario y puntos actualizados.`, 'success');
+    renderAllViews();
+  } catch (err) {
+    console.error("Excepción al anular la venta:", err);
+    showToast('Error crítico al intentar anular la venta.', 'danger');
+  }
+}
+window.voidSale = voidSale;
 
 // --- VISTA 3: INVENTARIO LÓGICA ---
 function renderInventory(searchQuery = '') {
