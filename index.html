@@ -239,6 +239,8 @@
 
           <!-- Cart / Ticket Area -->
           <div class="pos-ticket-sidebar" id="pos-ticket-sidebar">
+            <!-- Drag handle for mobile bottom sheet -->
+            <div class="mobile-sheet-handle" style="display: none; width: 40px; height: 5px; background-color: #cbd5e1; border-radius: 3px; margin: 8px auto 0 auto; min-height: 5px;"></div>
             <div class="ticket-header">
               <button class="btn-close-ticket" id="btn-close-ticket-mobile" style="display: none; background: none; border: none; cursor: pointer; color: var(--text-main); margin-right: 10px; padding: 4px; align-items: center; justify-content: center;">
                 <i class="fa-solid fa-arrow-left" style="font-size: 16px;"></i>
@@ -1403,6 +1405,30 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- Mobile Tab Bar Navigation -->
+  <div class="mobile-tab-bar">
+    <a href="#" class="tab-item active" data-target="dashboard">
+      <i class="fa-solid fa-chart-pie"></i>
+      <span>Inicio</span>
+    </a>
+    <a href="#" class="tab-item" data-target="pos">
+      <i class="fa-solid fa-cash-register"></i>
+      <span>Caja</span>
+    </a>
+    <a href="#" class="tab-item" data-target="inventory">
+      <i class="fa-solid fa-boxes-stacked"></i>
+      <span>Inventario</span>
+    </a>
+    <a href="#" class="tab-item" data-target="reports">
+      <i class="fa-solid fa-chart-line"></i>
+      <span>Reportes</span>
+    </a>
+    <a href="#" class="tab-item" data-target="settings">
+      <i class="fa-solid fa-gear"></i>
+      <span>Ajustes</span>
+    </a>
   </div>
 
   <!-- Toast Notification Container -->
