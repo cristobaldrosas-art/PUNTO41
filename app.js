@@ -1,4 +1,5 @@
 
+
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -1693,9 +1694,10 @@ function renderInventory(searchQuery = '') {
       nameDisplay = `${p.name} <span style="font-size: 10px; color: var(--text-muted); font-style: italic;">(Insumo)</span>`;
     }
 
-    let stockDisplay = `${availableStock} (min: ${p.minStock})`;
+    const unit = p.unit || 'uds';
+    let stockDisplay = `${availableStock} ${unit} (min: ${p.minStock} ${unit})`;
     if (hasRecipe) {
-      stockDisplay = `${availableStock} <span class="badge-stock-calculated">Receta</span> (min: ${p.minStock})`;
+      stockDisplay = `${availableStock} ${unit} <span class="badge-stock-calculated">Receta</span> (min: ${p.minStock} ${unit})`;
     }
 
     tr.innerHTML = `
@@ -1749,6 +1751,7 @@ function openProductModal(prodId = null) {
     document.getElementById('product-sku').value = prod.sku;
     document.getElementById('product-category').value = prod.category;
     document.getElementById('product-stock').value = prod.stock;
+    document.getElementById('product-unit').value = prod.unit || 'uds';
     document.getElementById('product-min-stock').value = prod.minStock;
     document.getElementById('product-cost-price').value = prod.costPrice;
     document.getElementById('product-sale-price').value = prod.salePrice;
@@ -1782,6 +1785,7 @@ function openProductModal(prodId = null) {
     document.getElementById('product-sku').value = 'P41-' + Math.floor(1000 + Math.random() * 9000);
     document.getElementById('product-pos-visible').checked = true;
     document.getElementById('product-recipe-section').style.display = 'block';
+    document.getElementById('product-unit').value = 'uds';
 
     document.getElementById('product-icon').value = 'auto';
     document.getElementById('product-color').value = 'auto';
@@ -1809,6 +1813,9 @@ function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') 
     return;
   }
 
+  const selectedProd = state.products.find(p => p.id === selectedId);
+  const unitText = selectedProd ? (selectedProd.unit || 'uds') : 'uds';
+
   const row = document.createElement('div');
   row.className = 'recipe-ingredient-row';
   row.innerHTML = `
@@ -1821,10 +1828,18 @@ function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') 
       }).join('')}
     </select>
     <input type="number" class="recipe-ing-qty" min="0.001" step="any" required placeholder="Cantidad" value="${quantity}">
+    <span class="recipe-ing-unit" style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-align: center; min-width: 25px;">${unitText}</span>
     <button type="button" class="btn-remove-ingredient" onclick="this.parentElement.remove()" title="Eliminar ingrediente">
       <i class="fa-solid fa-trash-can"></i>
     </button>
   `;
+  
+  // Agregar detector para actualizar la unidad de medida dinámicamente cuando el usuario cambia el insumo
+  row.querySelector('.recipe-ing-select').addEventListener('change', (e) => {
+    const selected = state.products.find(p => p.id === e.target.value);
+    row.querySelector('.recipe-ing-unit').innerText = selected ? (selected.unit || 'uds') : 'uds';
+  });
+
   container.appendChild(row);
 }
 window.addRecipeIngredientRow = addRecipeIngredientRow;
@@ -1848,6 +1863,7 @@ function handleProductFormSubmit(e) {
   const sku = document.getElementById('product-sku').value;
   const category = document.getElementById('product-category').value;
   const stock = Number(document.getElementById('product-stock').value);
+  const unit = document.getElementById('product-unit').value;
   const minStock = Number(document.getElementById('product-min-stock').value);
   const costPrice = Number(document.getElementById('product-cost-price').value);
   const salePrice = Number(document.getElementById('product-sale-price').value);
@@ -1884,7 +1900,7 @@ function handleProductFormSubmit(e) {
     const idx = state.products.findIndex(p => p.id === id);
     if (idx > -1) {
       state.products[idx] = { 
-        id, name, sku, category, stock, minStock, costPrice, salePrice, supplierId, 
+        id, name, sku, category, stock, unit, minStock, costPrice, salePrice, supplierId, 
         icon: finalIcon, 
         color: finalColor,
         posVisible,
@@ -1895,7 +1911,7 @@ function handleProductFormSubmit(e) {
   } else {
     const newProd = {
       id: 'prod-' + Date.now(),
-      name, sku, category, stock, minStock, costPrice, salePrice, supplierId,
+      name, sku, category, stock, unit, minStock, costPrice, salePrice, supplierId,
       icon: finalIcon,
       color: finalColor,
       posVisible,
