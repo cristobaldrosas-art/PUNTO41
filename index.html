@@ -408,6 +408,9 @@
             <button class="btn btn-secondary" onclick="exportInventoryPDF()" style="display: flex; align-items: center; gap: 6px;">
               <i class="fa-solid fa-file-pdf" style="color: #dc2626;"></i> Exportar PDF
             </button>
+            <button class="btn btn-secondary" id="btn-import-pdf" style="display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-file-import" style="color: var(--primary);"></i> Importar desde PDF
+            </button>
             <button class="btn btn-primary" id="btn-new-product">
               <i class="fa-solid fa-plus"></i> Nuevo Producto
             </button>
@@ -1310,8 +1313,75 @@
   <!-- Printable Corporate Report Template (A4 PDF) -->
   <div id="print-report-template" class="print-report-container"></div>
 
+  <!-- Import Inventory from PDF Modal -->
+  <div class="modal-overlay" id="import-pdf-modal">
+    <div class="modal-content large" style="max-width: 950px; width: 95%;">
+      <div class="modal-header">
+        <h3>Importar Inventario desde PDF</h3>
+        <button class="btn-close-modal" onclick="closeModal('import-pdf-modal')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+        
+        <!-- Step 1: Upload Dropzone -->
+        <div id="pdf-upload-step">
+          <div class="pdf-dropzone" id="pdf-dropzone">
+            <i class="fa-solid fa-file-pdf pdf-upload-icon" style="font-size: 48px; color: #dc2626; margin-bottom: 12px;"></i>
+            <h4>Arrastra tu factura o catálogo PDF aquí</h4>
+            <p>O haz clic para seleccionar el archivo desde tu computadora</p>
+            <input type="file" id="pdf-file-input" accept="application/pdf" style="display: none;">
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 15px; text-align: center;">
+            <i class="fa-solid fa-circle-info"></i> Soporta formatos de facturas electrónicas del SII de Chile y listas de productos tabulares.
+          </div>
+        </div>
+
+        <!-- Step 2: Processing / Review Table -->
+        <div id="pdf-preview-step" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="margin: 0; color: var(--text-main);"><span id="pdf-detected-count">0</span> productos encontrados en el documento</h4>
+            <button type="button" class="btn btn-secondary" id="btn-pdf-reset" style="padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+              <i class="fa-solid fa-arrow-rotate-left"></i> Cambiar Archivo
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="data-table" id="pdf-items-table">
+              <thead>
+                <tr>
+                  <th style="width: 5%; text-align: center;">Importar</th>
+                  <th style="width: 15%;">SKU</th>
+                  <th style="width: 32%;">Nombre / Detalle</th>
+                  <th style="width: 18%;">Categoría</th>
+                  <th style="width: 10%; text-align: right;">Costo Net.</th>
+                  <th style="width: 10%; text-align: right;">P. Venta</th>
+                  <th style="width: 5%; text-align: center;">Stock</th>
+                  <th style="width: 5%; text-align: center;">Estado</th>
+                </tr>
+              </thead>
+              <tbody id="pdf-items-tbody">
+                <!-- Dynamically populated rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('import-pdf-modal')">Cerrar</button>
+        <button type="button" class="btn btn-primary" id="btn-confirm-pdf-import" style="display: none;" disabled>
+          <i class="fa-solid fa-check"></i> Importar a Inventario
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
+
+  <!-- PDF.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  </script>
 
   <!-- Main JavaScript File -->
   <script src="app.js"></script>
