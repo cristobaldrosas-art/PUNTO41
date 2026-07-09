@@ -2075,8 +2075,7 @@ function handleProductFormSubmit(e) {
       color: finalColor,
       posVisible,
       recipe,
-      created_at: new Date().toISOString(),
-      createdAt: new Date().toISOString()
+      created_at: new Date().toISOString()
     };
     state.products.push(newProd);
     showToast('Producto creado con éxito');
@@ -4674,7 +4673,8 @@ document.getElementById('btn-confirm-pdf-import')?.addEventListener('click', asy
         salePrice,
         supplierId: null,
         icon: iconData.icon,
-        color: iconData.color
+        color: iconData.color,
+        created_at: new Date().toISOString()
       };
       state.products.push(newProduct);
     }
