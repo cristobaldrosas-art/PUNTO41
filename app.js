@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -2360,6 +2359,11 @@ function renderReports() {
 }
 
 // --- UTILERÍAS ---
+function openModal(modalId) {
+  document.getElementById(modalId).classList.add('active');
+}
+window.openModal = openModal;
+
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
 }
