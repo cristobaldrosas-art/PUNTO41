@@ -1,3 +1,5 @@
+
+
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    SISTEMA DE DISEÑO Y HOJA DE ESTILOS PRINCIPAL
@@ -2082,4 +2084,57 @@ a {
   width: 75px;
   text-align: right;
 }
+
+/* --- INGREDIENTES Y RECETAS --- */
+.recipe-ingredient-row {
+  display: grid;
+  grid-template-columns: 1fr 100px 30px;
+  gap: 8px;
+  align-items: center;
+  background-color: var(--bg-app);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.recipe-ingredient-row select,
+.recipe-ingredient-row input {
+  font-size: 12px;
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+  height: 32px;
+}
+
+.btn-remove-ingredient {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  width: 30px;
+  transition: var(--transition);
+}
+
+.btn-remove-ingredient:hover {
+  color: #b91c1c;
+  transform: scale(1.1);
+}
+
+.badge-stock-calculated {
+  background-color: rgba(29, 78, 216, 0.1);
+  color: var(--primary);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  display: inline-block;
+  margin-top: 4px;
+}
+
 
