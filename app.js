@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -166,11 +165,11 @@ function seedData() {
 
   // 1. Proveedores
   const seedSuppliers = [
-    { id: 'prov-1', name: 'Tostaduría Café de Especialidad Origen S.A.', rut: '76.120.340-5', phone: '+56 2 2456 7890', email: 'contacto@cafeorigen.cl', address: 'Av. Italia 1024, Providencia, Santiago' },
-    { id: 'prov-2', name: 'Distribuidora Pan y Dulce Rincón', rut: '77.890.120-K', phone: '+56 9 8765 4321', email: 'ventas@panydulce.cl', address: 'Las Condes 8840, Las Condes, Santiago' },
-    { id: 'prov-3', name: 'Lácteos del Sur S.A.', rut: '96.540.320-1', phone: '+56 63 245 1122', email: 'pedidos@lacteosdelsur.cl', address: 'Camino Osorno Km 12, Osorno' },
-    { id: 'prov-4', name: 'Bebidas y Jugos Frutales del Maipo', rut: '81.230.980-4', phone: '+56 2 2788 4400', email: 'ventas@frutalesmaipo.cl', address: 'Camino al Volcán 4500, Pirque' },
-    { id: 'prov-5', name: 'Importadora Bazar & Menaje Punto 41', rut: '79.110.220-3', phone: '+56 2 2333 1111', email: 'bazar@punto41.cl', address: 'Av. Vitacura 5020, Vitacura' }
+    { id: 'prov-1', name: 'Tostaduría Café de Especialidad Origen S.A.', rut: '76.120.340-5', phone: '+56 2 2456 7890', email: 'contacto@cafeorigen.cl', address: 'Av. Italia 1024, Providencia, Santiago', created_at: new Date().toISOString() },
+    { id: 'prov-2', name: 'Distribuidora Pan y Dulce Rincón', rut: '77.890.120-K', phone: '+56 9 8765 4321', email: 'ventas@panydulce.cl', address: 'Las Condes 8840, Las Condes, Santiago', created_at: new Date().toISOString() },
+    { id: 'prov-3', name: 'Lácteos del Sur S.A.', rut: '96.540.320-1', phone: '+56 63 245 1122', email: 'pedidos@lacteosdelsur.cl', address: 'Camino Osorno Km 12, Osorno', created_at: new Date().toISOString() },
+    { id: 'prov-4', name: 'Bebidas y Jugos Frutales del Maipo', rut: '81.230.980-4', phone: '+56 2 2788 4400', email: 'ventas@frutalesmaipo.cl', address: 'Camino al Volcán 4500, Pirque', created_at: new Date().toISOString() },
+    { id: 'prov-5', name: 'Importadora Bazar & Menaje Punto 41', rut: '79.110.220-3', phone: '+56 2 2333 1111', email: 'bazar@punto41.cl', address: 'Av. Vitacura 5020, Vitacura', created_at: new Date().toISOString() }
   ];
   state.suppliers = seedSuppliers;
 
@@ -1393,7 +1392,7 @@ function executeCheckout() {
 
   const saleItems = cart.map(item => {
     const prod = state.products.find(p => p.id === item.productId);
-    const cost = prod ? Number(prod.costPrice) : 0;
+    const cost = prod ? getProductCalculatedCost(prod) : 0;
     return {
       productId: item.productId,
       name: item.name,
@@ -1709,6 +1708,11 @@ function renderInventory(searchQuery = '') {
       stockDisplay = `${availableStock} ${unit} <span class="badge-stock-calculated">Receta</span> (min: ${p.minStock} ${unit})`;
     }
 
+    const calculatedCost = getProductCalculatedCost(p);
+    const costDisplay = hasRecipe 
+      ? `${formatCurrency(calculatedCost)} <span style="font-size: 9px; color: var(--text-muted); display:block; font-weight:normal; margin-top:2px;">(Receta)</span>` 
+      : formatCurrency(p.costPrice);
+
     tr.innerHTML = `
       <td><strong>${p.sku}</strong></td>
       <td>
@@ -1718,7 +1722,7 @@ function renderInventory(searchQuery = '') {
       </td>
       <td>${nameDisplay}</td>
       <td><span class="badge badge-neutral">${p.category}</span></td>
-      <td>${formatCurrency(p.costPrice)}</td>
+      <td>${costDisplay}</td>
       <td><strong>${formatCurrency(p.salePrice)}</strong></td>
       <td>
         <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">
@@ -1816,6 +1820,7 @@ function openProductModal(prodId = null) {
     previewIcon.className = 'fa-solid fa-mug-hot';
   }
 
+  updateModalRecipeCost();
   modal.classList.add('active');
 }
 
@@ -1856,7 +1861,7 @@ function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') 
     </select>
     <input type="number" class="recipe-ing-qty" min="0.001" step="any" required placeholder="Cantidad" value="${quantity}">
     <span class="recipe-ing-unit" style="font-size: 11px; color: var(--text-muted); font-weight: 600; text-align: center; min-width: 25px;">${unitText}</span>
-    <button type="button" class="btn-remove-ingredient" onclick="this.parentElement.remove()" title="Eliminar ingrediente">
+    <button type="button" class="btn-remove-ingredient" title="Eliminar ingrediente">
       <i class="fa-solid fa-trash-can"></i>
     </button>
   `;
@@ -1865,15 +1870,76 @@ function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') 
   row.querySelector('.recipe-ing-select').addEventListener('change', (e) => {
     const selected = state.products.find(p => p.id === e.target.value);
     row.querySelector('.recipe-ing-unit').innerText = selected ? getRecipeDisplayUnit(selected.unit) : 'uds';
+    updateModalRecipeCost();
+  });
+
+  // Detectar cambios en la cantidad para actualizar el costo
+  row.querySelector('.recipe-ing-qty').addEventListener('input', () => {
+    updateModalRecipeCost();
+  });
+
+  // Evento para eliminar la fila de ingrediente
+  row.querySelector('.btn-remove-ingredient').addEventListener('click', () => {
+    row.remove();
+    updateModalRecipeCost();
   });
 
   container.appendChild(row);
+  updateModalRecipeCost();
 }
 window.addRecipeIngredientRow = addRecipeIngredientRow;
+
+// Calcular y actualizar en tiempo real el precio de costo basado en la receta en el modal de edición
+function updateModalRecipeCost() {
+  const posVisibleEl = document.getElementById('product-pos-visible');
+  const posVisible = posVisibleEl ? posVisibleEl.checked : true;
+  const costInput = document.getElementById('product-cost-price');
+  if (!costInput) return;
+
+  if (!posVisible) {
+    // Si no está visible en el POS (es insumo), desbloquear costo para entrada manual
+    costInput.readOnly = false;
+    costInput.style.backgroundColor = '';
+    costInput.style.cursor = '';
+    return;
+  }
+
+  const rows = document.querySelectorAll('.recipe-ingredient-row');
+  let totalCost = 0;
+  rows.forEach(row => {
+    const ingId = row.querySelector('.recipe-ing-select').value;
+    const ingQty = Number(row.querySelector('.recipe-ing-qty').value);
+    if (ingId && ingQty > 0) {
+      const ingredient = state.products.find(p => p.id === ingId);
+      if (ingredient) {
+        let ingCost = Number(ingredient.costPrice) || 0;
+        const ingUnit = ingredient.unit || 'uds';
+        if (ingUnit === 'kg' || ingUnit === 'l') {
+          ingCost = ingCost / 1000; // kg -> g, l -> ml
+        }
+        totalCost += ingCost * ingQty;
+      }
+    }
+  });
+
+  if (rows.length > 0) {
+    costInput.value = Math.round(totalCost);
+    costInput.readOnly = true;
+    costInput.style.backgroundColor = '#f1f5f9';
+    costInput.style.cursor = 'not-allowed';
+  } else {
+    // Si no hay receta, desbloquear
+    costInput.readOnly = false;
+    costInput.style.backgroundColor = '';
+    costInput.style.cursor = '';
+  }
+}
+window.updateModalRecipeCost = updateModalRecipeCost;
 
 // Toggles y botones del modal de productos
 document.getElementById('product-pos-visible')?.addEventListener('change', (e) => {
   document.getElementById('product-recipe-section').style.display = e.target.checked ? 'block' : 'none';
+  updateModalRecipeCost();
 });
 
 document.getElementById('btn-add-recipe-ingredient')?.addEventListener('click', () => {
@@ -1897,7 +1963,10 @@ function handleProductFormSubmit(e) {
   const minStock = Number(document.getElementById('product-min-stock').value);
   const costPrice = Number(document.getElementById('product-cost-price').value);
   const salePrice = Number(document.getElementById('product-sale-price').value);
-  const supplierId = document.getElementById('product-supplier').value;
+  
+  // Si no selecciona proveedor, guardarlo como null (evita errores de clave foránea en Supabase si envía "")
+  const supplierIdVal = document.getElementById('product-supplier').value;
+  const supplierId = supplierIdVal === "" ? null : supplierIdVal;
   
   const posVisibleEl = document.getElementById('product-pos-visible');
   const posVisible = posVisibleEl ? posVisibleEl.checked : true;
@@ -1932,7 +2001,8 @@ function handleProductFormSubmit(e) {
     const idx = state.products.findIndex(p => p.id === id);
     if (idx > -1) {
       state.products[idx] = { 
-        id, name, sku, category, stock, unit, minStock, costPrice, salePrice, supplierId, 
+        ...state.products[idx], // Preservar propiedades y fechas existentes
+        name, sku, category, stock, unit, minStock, costPrice, salePrice, supplierId, 
         icon: finalIcon, 
         color: finalColor,
         posVisible,
@@ -1947,7 +2017,9 @@ function handleProductFormSubmit(e) {
       icon: finalIcon,
       color: finalColor,
       posVisible,
-      recipe
+      recipe,
+      created_at: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
     state.products.push(newProd);
     showToast('Producto creado con éxito');
@@ -2192,13 +2264,17 @@ function handleSupplierFormSubmit(e) {
   if (id) {
     const idx = state.suppliers.findIndex(s => s.id === id);
     if (idx > -1) {
-      state.suppliers[idx] = { id, name, rut, phone, email, address };
+      state.suppliers[idx] = { 
+        ...state.suppliers[idx], 
+        name, rut, phone, email, address 
+      };
       showToast('Proveedor actualizado con éxito');
     }
   } else {
     const newSup = {
       id: 'prov-' + Date.now(),
-      name, rut, phone, email, address
+      name, rut, phone, email, address,
+      created_at: new Date().toISOString()
     };
     state.suppliers.push(newSup);
     showToast('Proveedor creado correctamente');
@@ -4590,5 +4666,31 @@ function getProductAvailableStock(prod) {
   return minAvailable === Infinity ? 0 : minAvailable;
 }
 window.getProductAvailableStock = getProductAvailableStock;
+
+// Función de utilidad para calcular el costo de recetas basado en la suma fraccional de sus insumos
+function getProductCalculatedCost(prod) {
+  if (!prod.recipe || prod.recipe.length === 0) {
+    return Number(prod.costPrice) || 0;
+  }
+  
+  let totalCost = 0;
+  prod.recipe.forEach(item => {
+    const ingredient = state.products.find(p => p.id === item.id);
+    if (ingredient) {
+      let ingCostPerBaseUnit = Number(ingredient.costPrice) || 0;
+      const ingUnit = ingredient.unit || 'uds';
+      
+      // Si el insumo está en kg o l, dividimos el costo por 1000 para obtener el costo por gramo o ml
+      if (ingUnit === 'kg' || ingUnit === 'l') {
+        ingCostPerBaseUnit = ingCostPerBaseUnit / 1000;
+      }
+      
+      totalCost += ingCostPerBaseUnit * Number(item.qty);
+    }
+  });
+  
+  return Math.round(totalCost);
+}
+window.getProductCalculatedCost = getProductCalculatedCost;
 
 
