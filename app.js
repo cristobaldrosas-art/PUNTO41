@@ -956,6 +956,10 @@ function renderPOSProducts(searchQuery = '') {
   const normalizedQuery = getNormalizedText(searchQuery);
 
   const filteredProducts = state.products.filter(prod => {
+    // Ocultar del POS si no está marcado para la venta
+    if (prod.posVisible === false) {
+      return false;
+    }
     if (activeCategoryFilter !== 'Todos' && prod.category !== activeCategoryFilter) {
       return false;
     }
@@ -1718,6 +1722,7 @@ function openProductModal(prodId = null) {
     document.getElementById('product-cost-price').value = prod.costPrice;
     document.getElementById('product-sale-price').value = prod.salePrice;
     document.getElementById('product-supplier').value = prod.supplierId;
+    document.getElementById('product-pos-visible').checked = prod.posVisible !== false;
 
     // Determinar si el icono/color guardados eran personalizados o autodetectados
     const autodetected = getProductIconData(prod.name, prod.category);
@@ -1734,6 +1739,7 @@ function openProductModal(prodId = null) {
     title.innerText = 'Nuevo Producto';
     document.getElementById('product-id').value = '';
     document.getElementById('product-sku').value = 'P41-' + Math.floor(1000 + Math.random() * 9000);
+    document.getElementById('product-pos-visible').checked = true;
 
     document.getElementById('product-icon').value = 'auto';
     document.getElementById('product-color').value = 'auto';
@@ -1761,6 +1767,7 @@ function handleProductFormSubmit(e) {
   const costPrice = Number(document.getElementById('product-cost-price').value);
   const salePrice = Number(document.getElementById('product-sale-price').value);
   const supplierId = document.getElementById('product-supplier').value;
+  const posVisible = document.getElementById('product-pos-visible').checked;
 
   const selectedIcon = document.getElementById('product-icon').value;
   const selectedColor = document.getElementById('product-color').value;
@@ -1781,7 +1788,8 @@ function handleProductFormSubmit(e) {
       state.products[idx] = { 
         id, name, sku, category, stock, minStock, costPrice, salePrice, supplierId, 
         icon: finalIcon, 
-        color: finalColor 
+        color: finalColor,
+        posVisible
       };
       showToast('Producto actualizado correctamente');
     }
@@ -1790,7 +1798,8 @@ function handleProductFormSubmit(e) {
       id: 'prod-' + Date.now(),
       name, sku, category, stock, minStock, costPrice, salePrice, supplierId,
       icon: finalIcon,
-      color: finalColor
+      color: finalColor,
+      posVisible
     };
     state.products.push(newProd);
     showToast('Producto creado con éxito');
