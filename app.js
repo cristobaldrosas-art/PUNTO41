@@ -915,7 +915,8 @@ function renderPOS() {
   const categoriesContainer = document.getElementById('pos-categories-container');
   categoriesContainer.innerHTML = '';
   
-  const categories = ['Todos', ...new Set(state.products.map(p => p.category))];
+  const posVisibleProducts = state.products.filter(p => p.posVisible !== false);
+  const categories = ['Todos', ...new Set(posVisibleProducts.map(p => p.category))];
   
   categories.forEach(cat => {
     const btn = document.createElement('button');
@@ -1962,6 +1963,9 @@ function updateModalRecipeCost() {
     }
   });
 
+  const supplierSelect = document.getElementById('product-supplier');
+  const supplierLabel = supplierSelect ? supplierSelect.parentElement.querySelector('label') : null;
+
   if (rows.length > 0) {
     const finalCost = Math.round(totalCost);
     const finalStock = minAvailable === Infinity ? 0 : minAvailable;
@@ -1979,6 +1983,10 @@ function updateModalRecipeCost() {
     stockInput.readOnly = true;
     stockInput.style.backgroundColor = '#f1f5f9';
     stockInput.style.cursor = 'not-allowed';
+
+    // Proveedor es opcional si el producto se elabora mediante receta
+    if (supplierSelect) supplierSelect.removeAttribute('required');
+    if (supplierLabel) supplierLabel.innerHTML = 'Proveedor Asignado <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(Opcional para recetas)</span>';
   } else {
     console.log("No hay ingredientes en la receta. Desbloqueando inputs para edición manual.");
     // Si no hay receta, desbloquear ambos para edición manual
@@ -1989,6 +1997,10 @@ function updateModalRecipeCost() {
     stockInput.readOnly = false;
     stockInput.style.backgroundColor = '';
     stockInput.style.cursor = '';
+
+    // Proveedor vuelve a ser requerido si se compra directamente
+    if (supplierSelect) supplierSelect.setAttribute('required', 'required');
+    if (supplierLabel) supplierLabel.innerHTML = 'Proveedor Asignado *';
   }
 }
 window.updateModalRecipeCost = updateModalRecipeCost;
