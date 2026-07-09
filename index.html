@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -700,6 +701,30 @@
             </div>
             
             <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-credit-card" style="color: var(--primary);"></i> Integración POS TUU (Haulmer)</h4>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 15px 0;">
+                Envía los cobros con tarjeta directamente a tu máquina física TUU. El terminal recibirá el monto, solicitará deslizar la tarjeta y reportará el resultado en tu pantalla.
+              </p>
+              
+              <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                <div style="display: flex; gap: 10px;">
+                  <div style="flex: 1;">
+                    <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px;">API Key de TUU</label>
+                    <input type="password" id="settings-tuu-apikey" placeholder="Ej: key_abc123..." style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background-color: var(--bg-card); color: var(--text-main); font-size: 12px; font-family: 'Outfit'; outline: none;">
+                  </div>
+                  <div style="flex: 1;">
+                    <label style="font-size: 11px; color: var(--text-muted); font-weight: 600; display: block; margin-bottom: 4px;">Nº Serie POS TUU</label>
+                    <input type="text" id="settings-tuu-device" placeholder="Ej: HLM12345678" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background-color: var(--bg-card); color: var(--text-main); font-size: 12px; font-family: 'Outfit'; outline: none;">
+                  </div>
+                </div>
+
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 6px; user-select: none;">
+                  <input type="checkbox" id="settings-tuu-active"> Activar cobro remoto automático por POS TUU
+                </label>
+              </div>
+            </div>
+
+            <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 15px;">
               <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-trash-can" style="color: var(--danger);"></i> Restablecer Valores de Fábrica</h4>
               <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 15px 0;">
                 Esta acción eliminará todos los datos personalizados de productos, ventas e historial del navegador y volverá a cargar los datos semilla de demostración.
@@ -740,6 +765,30 @@
       <div style="display: flex; gap: 10px;">
         <button type="button" class="btn btn-secondary" onclick="closeModal('sii-captcha-modal')" style="flex: 1; font-size: 13px;">Cancelar</button>
         <button type="button" class="btn btn-primary" id="btn-sii-submit-captcha" style="flex: 1; font-size: 13px;">Verificar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TUU PAYMENT Modal -->
+  <div class="modal-overlay" id="tuu-payment-modal" style="z-index: 1150;">
+    <div class="modal-content mini" style="max-width: 350px; padding: 25px; text-align: center; border-radius: var(--radius-md); border: 1px solid var(--border-color); background-color: #ffffff; font-family: 'Outfit';">
+      <div style="margin-bottom: 20px;">
+        <div id="tuu-modal-icon-wrapper" style="background-color: rgba(37, 99, 235, 0.1); color: var(--primary); border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
+          <i class="fa-solid fa-spinner fa-spin" id="tuu-modal-icon" style="font-size: 26px;"></i>
+        </div>
+        <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color: var(--text-main);" id="tuu-modal-title">Cobro con Tarjeta TUU</h3>
+        <p style="margin: 0 0 15px 0; font-size: 13px; color: var(--text-muted); line-height: 1.4;" id="tuu-modal-status">Conectando con la máquina de pago remoto...</p>
+        
+        <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; margin-top: 15px;">
+          <span style="font-size: 11px; color: var(--text-muted); display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Monto a Cobrar</span>
+          <span id="tuu-modal-amount" style="font-size: 24px; font-weight: 800; color: var(--text-main); display: block; margin-top: 4px;">$0</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button type="button" class="btn btn-danger" id="btn-tuu-cancel" style="flex: 1; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <i class="fa-solid fa-ban"></i> Cancelar Cobro
+        </button>
       </div>
     </div>
   </div>
@@ -1421,4 +1470,3 @@
   <script src="app.js"></script>
 </body>
 </html>
-
