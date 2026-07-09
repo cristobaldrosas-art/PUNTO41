@@ -382,6 +382,15 @@ function setupEventListeners() {
     });
   });
 
+  // Mobile Tab Bar Navigation
+  document.querySelectorAll('.mobile-tab-bar .tab-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = item.getAttribute('data-target');
+      navigateTo(target);
+    });
+  });
+
   // GESTIÓN DE ROLES / PERFILES
   document.getElementById('app-role-select').addEventListener('change', (e) => {
     const chosenRole = e.target.value;
@@ -818,6 +827,14 @@ function navigateTo(viewId) {
 
   document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
     item.classList.remove('active');
+  });
+
+  // Actualizar también la barra de navegación inferior móvil (TabBar)
+  document.querySelectorAll('.mobile-tab-bar .tab-item').forEach(item => {
+    item.classList.remove('active');
+    if (item.getAttribute('data-target') === viewId) {
+      item.classList.add('active');
+    }
   });
 
   const targetSection = document.getElementById(`${viewId}-section`);
