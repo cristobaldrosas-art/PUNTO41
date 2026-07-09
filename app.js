@@ -1889,49 +1889,78 @@ function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') 
 }
 window.addRecipeIngredientRow = addRecipeIngredientRow;
 
-// Calcular y actualizar en tiempo real el precio de costo basado en la receta en el modal de edición
+// Calcular y actualizar en tiempo real el precio de costo y stock basado en la receta en el modal de edición
 function updateModalRecipeCost() {
   const posVisibleEl = document.getElementById('product-pos-visible');
   const posVisible = posVisibleEl ? posVisibleEl.checked : true;
   const costInput = document.getElementById('product-cost-price');
-  if (!costInput) return;
+  const stockInput = document.getElementById('product-stock');
+  if (!costInput || !stockInput) return;
 
   if (!posVisible) {
-    // Si no está visible en el POS (es insumo), desbloquear costo para entrada manual
+    // Si no está visible en el POS (es insumo), desbloquear costo y stock para entrada manual
     costInput.readOnly = false;
     costInput.style.backgroundColor = '';
     costInput.style.cursor = '';
+    
+    stockInput.readOnly = false;
+    stockInput.style.backgroundColor = '';
+    stockInput.style.cursor = '';
     return;
   }
 
   const rows = document.querySelectorAll('.recipe-ingredient-row');
   let totalCost = 0;
+  let minAvailable = Infinity;
+
   rows.forEach(row => {
     const ingId = row.querySelector('.recipe-ing-select').value;
     const ingQty = Number(row.querySelector('.recipe-ing-qty').value);
     if (ingId && ingQty > 0) {
       const ingredient = state.products.find(p => p.id === ingId);
       if (ingredient) {
+        // 1. Calcular Fracción de Costo
         let ingCost = Number(ingredient.costPrice) || 0;
         const ingUnit = ingredient.unit || 'uds';
         if (ingUnit === 'kg' || ingUnit === 'l') {
           ingCost = ingCost / 1000; // kg -> g, l -> ml
         }
         totalCost += ingCost * ingQty;
+
+        // 2. Calcular Fracción de Stock Disponible
+        let ingredientStock = Number(ingredient.stock) || 0;
+        if (ingUnit === 'kg' || ingUnit === 'l') {
+          ingredientStock = ingredientStock * 1000; // kg -> g, l -> ml
+        }
+        const availableForThis = Math.floor(ingredientStock / ingQty);
+        if (availableForThis < minAvailable) {
+          minAvailable = availableForThis;
+        }
       }
     }
   });
 
   if (rows.length > 0) {
+    // Bloquear y autocalcular Costo
     costInput.value = Math.round(totalCost);
     costInput.readOnly = true;
     costInput.style.backgroundColor = '#f1f5f9';
     costInput.style.cursor = 'not-allowed';
+
+    // Bloquear y autocalcular Stock
+    stockInput.value = minAvailable === Infinity ? 0 : minAvailable;
+    stockInput.readOnly = true;
+    stockInput.style.backgroundColor = '#f1f5f9';
+    stockInput.style.cursor = 'not-allowed';
   } else {
-    // Si no hay receta, desbloquear
+    // Si no hay receta, desbloquear ambos para edición manual
     costInput.readOnly = false;
     costInput.style.backgroundColor = '';
     costInput.style.cursor = '';
+
+    stockInput.readOnly = false;
+    stockInput.style.backgroundColor = '';
+    stockInput.style.cursor = '';
   }
 }
 window.updateModalRecipeCost = updateModalRecipeCost;
