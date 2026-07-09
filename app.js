@@ -138,6 +138,16 @@ function loadStateFromLocalStorage() {
 }
 
 function saveStateToLocalStorage() {
+  // Recalcular y actualizar dinámicamente el stock y precio costo de los productos con receta en el estado general
+  if (state.products && Array.isArray(state.products)) {
+    state.products.forEach(p => {
+      if (p.recipe && p.recipe.length > 0) {
+        p.stock = getProductAvailableStock(p);
+        p.costPrice = getProductCalculatedCost(p);
+      }
+    });
+  }
+
   localStorage.setItem('p41_products', JSON.stringify(state.products));
   localStorage.setItem('p41_clients', JSON.stringify(state.clients));
   localStorage.setItem('p41_suppliers', JSON.stringify(state.suppliers));
@@ -1896,13 +1906,18 @@ function updateModalRecipeCost() {
   const posVisible = posVisibleEl ? posVisibleEl.checked : true;
   const costInput = document.getElementById('product-cost-price');
   const stockInput = document.getElementById('product-stock');
-  if (!costInput || !stockInput) {
-    console.warn("No se encontraron los inputs de costo o stock en el modal.");
+  const saleInput = document.getElementById('product-sale-price');
+  const saleLabel = saleInput ? saleInput.parentElement.querySelector('label') : null;
+  
+  if (!costInput || !stockInput || !saleInput) {
+    console.warn("No se encontraron los inputs de costo, stock o precio venta en el modal.");
     return;
   }
 
   if (!posVisible) {
-    console.log("El producto es un insumo (no visible en POS). Desbloqueando edición manual.");
+    console.log("El producto es un insumo (no visible en POS). Desbloqueando edición manual de stock/costo y desactivando precio de venta.");
+    
+    // Desbloquear costo y stock para entrada manual
     costInput.readOnly = false;
     costInput.style.backgroundColor = '';
     costInput.style.cursor = '';
@@ -1910,8 +1925,30 @@ function updateModalRecipeCost() {
     stockInput.readOnly = false;
     stockInput.style.backgroundColor = '';
     stockInput.style.cursor = '';
+
+    // Desactivar y poner a 0 el precio de venta
+    saleInput.value = 0;
+    saleInput.readOnly = true;
+    saleInput.removeAttribute('required');
+    saleInput.style.backgroundColor = '#f1f5f9';
+    saleInput.style.cursor = 'not-allowed';
+    if (saleLabel) saleLabel.innerHTML = 'Precio Venta <span style="font-weight:normal; font-size:11px; color:var(--text-muted);">(No aplica para insumos)</span>';
+
+    // Proveedor es obligatorio para insumos comprados directamente
+    const supplierSelect = document.getElementById('product-supplier');
+    const supplierLabel = supplierSelect ? supplierSelect.parentElement.querySelector('label') : null;
+    if (supplierSelect) supplierSelect.setAttribute('required', 'required');
+    if (supplierLabel) supplierLabel.innerHTML = 'Proveedor Asignado *';
+
     return;
   }
+
+  // Si es visible en POS, restaurar input de venta
+  saleInput.readOnly = false;
+  saleInput.setAttribute('required', 'required');
+  saleInput.style.backgroundColor = '';
+  saleInput.style.cursor = '';
+  if (saleLabel) saleLabel.innerHTML = 'Precio Venta ($) *';
 
   const rows = document.querySelectorAll('.recipe-ingredient-row');
   console.log("Ejecutando updateModalRecipeCost. Filas de ingredientes encontradas:", rows.length);
@@ -4118,6 +4155,17 @@ async function loadStateFromSupabase() {
 
     // Actualizar estado local
     state.products = resProd.data || [];
+    
+    // Recalcular stock y costo de recetas tras descargar la info de la nube para corregir cualquier desfase
+    if (state.products && Array.isArray(state.products)) {
+      state.products.forEach(p => {
+        if (p.recipe && p.recipe.length > 0) {
+          p.stock = getProductAvailableStock(p);
+          p.costPrice = getProductCalculatedCost(p);
+        }
+      });
+    }
+    
     state.clients = resCli.data || [];
     state.suppliers = resSup.data || [];
     // Ordenar ventas por fecha descendente
