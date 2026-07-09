@@ -1486,12 +1486,12 @@ function executeCheckout() {
     clientPointsBalance: client ? client.points : 0
   };
 
-  // Integración de pago por POS TUU (Haulmer) para Tarjeta, Efectivo y Transferencia
+  // Integración de pago por POS TUU (Haulmer) para Tarjeta
   const tuuActive = localStorage.getItem('p41_tuu_active') === 'true';
-  if (tuuActive && (paymentMethod === 'tarjeta' || paymentMethod === 'efectivo' || paymentMethod === 'transferencia')) {
+  if (tuuActive && paymentMethod === 'tarjeta') {
     startTuuPayment(finalTotal, paymentMethod, newSale, client, pointsEarned);
   } else {
-    // Si no está activo TUU, completar la venta directo
+    // Si no está activo TUU o es efectivo/transferencia, completar la venta directo
     completeCheckoutFinal(newSale, finalTotal, paymentMethod, client, pointsEarned);
   }
 }
