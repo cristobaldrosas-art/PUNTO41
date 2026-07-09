@@ -150,7 +150,7 @@ function loadStateFromLocalStorage() {
   }
 }
 
-function saveStateToLocalStorage() {
+function saveStateToLocalStorage(showToastAlert = false) {
   // Recalcular y actualizar dinámicamente el stock y precio costo de los productos con receta en el estado general
   if (state.products && Array.isArray(state.products)) {
     state.products.forEach(p => {
@@ -185,11 +185,16 @@ function saveStateToLocalStorage() {
   if (tuuDeviceInput) localStorage.setItem('p41_tuu_device', tuuDeviceInput.value);
   if (tuuActiveCheckbox) localStorage.setItem('p41_tuu_active', tuuActiveCheckbox.checked ? 'true' : 'false');
 
+  if (showToastAlert) {
+    showToast('Ajustes guardados correctamente.', 'success');
+  }
+
   // Sincronizar en segundo plano con Supabase Cloud
   if (supabaseClient) {
     syncStateToSupabase();
   }
 }
+window.saveStateToLocalStorage = saveStateToLocalStorage;
 
 // Sembrar datos realistas de cafetería chilena
 function seedData() {
@@ -1496,36 +1501,7 @@ function completeCheckoutFinal(newSale, finalTotal, paymentMethod, client, point
   state.sales.push(newSale);
   saveStateToLocalStorage();
 
-  // Integración e-boleta SII en la Nube (Solo Efectivo o Transferencia con confirmación)
-  const eboletaActive = document.getElementById('settings-eboleta-active')?.checked;
-  if (eboletaActive && (paymentMethod === 'efectivo' || paymentMethod === 'transferencia')) {
-    const wantsBoleta = confirm(`¿Desea emitir boleta electrónica en el SII para esta venta de $${Math.round(finalTotal).toLocaleString('es-CL')} pagada con ${paymentMethod === 'efectivo' ? 'Efectivo' : 'Transferencia'}?`);
-    
-    if (wantsBoleta) {
-      showToast('Enviando boleta al SII en la nube...', 'info');
-      fetch('/api/sii/emitir', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ total: Math.round(finalTotal) })
-      })
-      .then(res => {
-        if (!res.ok) {
-          return res.text().then(text => { throw new Error(text || `Error HTTP ${res.status}`); });
-        }
-        return res.json();
-      })
-      .then(data => {
-        if (data.success) {
-          showToast('Boleta emitida con éxito en el SII', 'success');
-        } else {
-          showToast('Error SII: ' + data.message, 'danger');
-        }
-      })
-      .catch(err => {
-        showToast('Error de red al conectar con el facturador SII', 'danger');
-      });
-    }
-  }
+
 
   cart = [];
   cartDiscount = { value: 0, type: 'percent' };
@@ -4190,144 +4166,7 @@ function selectPOSClient(clientId) {
 }
 window.selectPOSClient = selectPOSClient;
 
-// --- INTEGRACIÓN NUBE E-BOLETA SII ---
-function updateSIIStatusUI(text, statusType) {
-  const statusEl = document.getElementById('settings-sii-status');
-  if (!statusEl) return;
 
-  if (statusType === 'connected') {
-    statusEl.innerHTML = `<i class="fa-solid fa-circle" style="font-size: 8px; margin-right: 4px; color: var(--success); vertical-align: middle;"></i> Conectado`;
-    statusEl.style.color = 'var(--success)';
-  } else if (statusType === 'loading') {
-    statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="font-size: 10px; margin-right: 4px; vertical-align: middle;"></i> Conectando...`;
-    statusEl.style.color = 'var(--warning)';
-  } else if (statusType === 'captcha') {
-    statusEl.innerHTML = `<i class="fa-solid fa-circle-exclamation" style="font-size: 8px; margin-right: 4px; color: var(--warning); vertical-align: middle;"></i> Validar CAPTCHA`;
-    statusEl.style.color = 'var(--warning)';
-  } else {
-    statusEl.innerHTML = `<i class="fa-solid fa-circle" style="font-size: 8px; margin-right: 4px; color: var(--danger); vertical-align: middle;"></i> Desconectado`;
-    statusEl.style.color = 'var(--danger)';
-  }
-}
-
-function checkSIIConnectionStatus() {
-  if (window.location.protocol === 'file:') return;
-  fetch('/api/sii/status')
-    .then(res => res.json())
-    .then(data => {
-      if (data.connected) {
-        updateSIIStatusUI(null, 'connected');
-      } else {
-        updateSIIStatusUI(null, 'disconnected');
-      }
-    })
-    .catch(() => {
-      updateSIIStatusUI(null, 'disconnected');
-    });
-}
-window.checkSIIConnectionStatus = checkSIIConnectionStatus;
-
-function connectSII() {
-  if (window.location.protocol === 'file:') {
-    updateSIIStatusUI(null, 'disconnected');
-    showToast('Error: Estás abriendo el archivo HTML local directamente. Debes iniciar el servidor de Node.js o desplegarlo en Render para usar la integración.', 'danger');
-    return;
-  }
-
-  const rut = document.getElementById('settings-sii-rut')?.value;
-  const clave = document.getElementById('settings-sii-clave')?.value;
-
-  if (!rut || !clave) {
-    showToast('Por favor ingrese el RUT y la clave tributaria del SII', 'warning');
-    return;
-  }
-
-  updateSIIStatusUI(null, 'loading');
-  showToast('Iniciando sesión en la nube del SII...', 'info');
-
-  fetch('/api/sii/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ rut, clave })
-  })
-  .then(res => {
-    if (!res.ok) {
-      return res.text().then(text => { throw new Error(text || `Error HTTP ${res.status}`); });
-    }
-    return res.json();
-  })
-  .then(data => {
-    if (data.success) {
-      if (data.status === 'captcha_required') {
-        updateSIIStatusUI(null, 'captcha');
-        openCaptchaModal(data.captchaImg);
-      } else if (data.status === 'connected') {
-        updateSIIStatusUI(null, 'connected');
-        showToast('Conectado con éxito al portal de e-boleta SII', 'success');
-      }
-    } else {
-      updateSIIStatusUI(null, 'disconnected');
-      showToast('Error SII: ' + data.message, 'danger');
-    }
-  })
-  .catch(err => {
-    updateSIIStatusUI(null, 'disconnected');
-    showToast('Error de red al intentar conectar con el SII', 'danger');
-  });
-}
-window.connectSII = connectSII;
-
-function openCaptchaModal(imgSrc) {
-  const imgEl = document.getElementById('sii-captcha-img');
-  const inputEl = document.getElementById('sii-captcha-input');
-  if (imgEl) imgEl.src = imgSrc;
-  if (inputEl) inputEl.value = '';
-  document.getElementById('sii-captcha-modal').classList.add('active');
-  setTimeout(() => { if (inputEl) inputEl.focus(); }, 300);
-}
-
-function submitSIICaptcha() {
-  const captchaText = document.getElementById('sii-captcha-input')?.value;
-
-  if (!captchaText) {
-    showToast('Por favor escribe el texto del CAPTCHA', 'warning');
-    return;
-  }
-
-  showToast('Enviando código de seguridad...', 'info');
-  closeModal('sii-captcha-modal');
-  updateSIIStatusUI(null, 'loading');
-
-  fetch('/api/sii/solve-captcha', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ captchaText })
-  })
-  .then(res => {
-    if (!res.ok) {
-      return res.text().then(text => { throw new Error(text || `Error HTTP ${res.status}`); });
-    }
-    return res.json();
-  })
-  .then(data => {
-    if (data.success) {
-      updateSIIStatusUI(null, 'connected');
-      showToast('Conectado con éxito al portal de e-boleta SII', 'success');
-    } else if (data.status === 'captcha_required') {
-      updateSIIStatusUI(null, 'captcha');
-      showToast('Código incorrecto. Reintentando...', 'warning');
-      openCaptchaModal(data.captchaImg);
-    } else {
-      updateSIIStatusUI(null, 'disconnected');
-      showToast('Error: ' + data.message, 'danger');
-    }
-  })
-  .catch(err => {
-    updateSIIStatusUI(null, 'disconnected');
-    showToast('Error de red al enviar CAPTCHA', 'danger');
-  });
-}
-window.submitSIICaptcha = submitSIICaptcha;
 
 // --- SINCRONIZACIÓN CON SUPABASE CLOUD ---
 async function loadStateFromSupabase() {
