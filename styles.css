@@ -1,5 +1,4 @@
 
-
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    SISTEMA DE DISEÑO Y HOJA DE ESTILOS PRINCIPAL
@@ -2088,7 +2087,7 @@ a {
 /* --- INGREDIENTES Y RECETAS --- */
 .recipe-ingredient-row {
   display: grid;
-  grid-template-columns: 1fr 100px 30px;
+  grid-template-columns: 1fr 100px 35px 30px;
   gap: 8px;
   align-items: center;
   background-color: var(--bg-app);
