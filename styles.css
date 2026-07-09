@@ -1998,3 +1998,88 @@ a {
     font-size: 12px !important;
   }
 }
+
+/* --- IMPORTACIÓN DESDE PDF (DROPZONE Y TABLA) --- */
+.pdf-dropzone {
+  border: 2px dashed var(--border-color);
+  background-color: var(--bg-app);
+  border-radius: var(--radius-lg);
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-dropzone:hover, .pdf-dropzone.dragover {
+  border-color: var(--primary);
+  background-color: var(--primary-light);
+}
+
+.pdf-dropzone h4 {
+  font-size: 16px;
+  color: var(--text-main);
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
+.pdf-dropzone p {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.pdf-upload-icon {
+  transition: transform 0.2s;
+}
+
+.pdf-dropzone:hover .pdf-upload-icon {
+  transform: translateY(-5px) scale(1.1);
+}
+
+/* Tabla de previsualización en modal */
+#pdf-items-table {
+  font-size: 12px;
+}
+
+#pdf-items-table th, #pdf-items-table td {
+  padding: 8px 12px;
+}
+
+.badge-import-status {
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  display: inline-block;
+}
+
+.badge-import-status.new {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+}
+
+.badge-import-status.update {
+  background-color: rgba(29, 78, 216, 0.1);
+  color: var(--primary);
+}
+
+.badge-import-status.error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+}
+
+.pdf-row-select, .pdf-row-category, .pdf-row-price {
+  font-size: 12px;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.pdf-row-price {
+  width: 75px;
+  text-align: right;
+}
+
