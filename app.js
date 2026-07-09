@@ -1760,15 +1760,21 @@ function openProductModal(prodId = null) {
     document.getElementById('product-sku').value = prod.sku;
     document.getElementById('product-category').value = prod.category;
     document.getElementById('product-stock').value = prod.stock;
-    document.getElementById('product-unit').value = prod.unit || 'uds';
+    
+    const unitEl = document.getElementById('product-unit');
+    if (unitEl) unitEl.value = prod.unit || 'uds';
+    
     document.getElementById('product-min-stock').value = prod.minStock;
     document.getElementById('product-cost-price').value = prod.costPrice;
     document.getElementById('product-sale-price').value = prod.salePrice;
     document.getElementById('product-supplier').value = prod.supplierId;
     
     const isPOSVisible = prod.posVisible !== false;
-    document.getElementById('product-pos-visible').checked = isPOSVisible;
-    document.getElementById('product-recipe-section').style.display = isPOSVisible ? 'block' : 'none';
+    const posVisibleEl = document.getElementById('product-pos-visible');
+    if (posVisibleEl) posVisibleEl.checked = isPOSVisible;
+    
+    const recipeSec = document.getElementById('product-recipe-section');
+    if (recipeSec) recipeSec.style.display = isPOSVisible ? 'block' : 'none';
 
     // Cargar ingredientes si existen
     if (prod.recipe && prod.recipe.length > 0) {
@@ -1792,9 +1798,15 @@ function openProductModal(prodId = null) {
     title.innerText = 'Nuevo Producto';
     document.getElementById('product-id').value = '';
     document.getElementById('product-sku').value = 'P41-' + Math.floor(1000 + Math.random() * 9000);
-    document.getElementById('product-pos-visible').checked = true;
-    document.getElementById('product-recipe-section').style.display = 'block';
-    document.getElementById('product-unit').value = 'uds';
+    
+    const posVisibleEl = document.getElementById('product-pos-visible');
+    if (posVisibleEl) posVisibleEl.checked = true;
+    
+    const recipeSec = document.getElementById('product-recipe-section');
+    if (recipeSec) recipeSec.style.display = 'block';
+    
+    const unitEl = document.getElementById('product-unit');
+    if (unitEl) unitEl.value = 'uds';
 
     document.getElementById('product-icon').value = 'auto';
     document.getElementById('product-color').value = 'auto';
@@ -1878,12 +1890,17 @@ function handleProductFormSubmit(e) {
   const sku = document.getElementById('product-sku').value;
   const category = document.getElementById('product-category').value;
   const stock = Number(document.getElementById('product-stock').value);
-  const unit = document.getElementById('product-unit').value;
+  
+  const unitEl = document.getElementById('product-unit');
+  const unit = unitEl ? unitEl.value : 'uds';
+  
   const minStock = Number(document.getElementById('product-min-stock').value);
   const costPrice = Number(document.getElementById('product-cost-price').value);
   const salePrice = Number(document.getElementById('product-sale-price').value);
   const supplierId = document.getElementById('product-supplier').value;
-  const posVisible = document.getElementById('product-pos-visible').checked;
+  
+  const posVisibleEl = document.getElementById('product-pos-visible');
+  const posVisible = posVisibleEl ? posVisibleEl.checked : true;
 
   // Recopilar ingredientes de receta
   const recipe = [];
@@ -4016,6 +4033,7 @@ async function syncStateToSupabase() {
     console.log('Datos guardados y sincronizados con éxito en Supabase.');
   } catch (error) {
     console.error('Error al subir datos a Supabase:', error);
+    showToast('Error de sincronización con la nube: ' + (error.message || error), 'danger');
   }
 }
 window.syncStateToSupabase = syncStateToSupabase;
