@@ -983,8 +983,9 @@ function renderPOSProducts(searchQuery = '') {
   }
 
   filteredProducts.forEach(prod => {
-    const isOutOfStock = Number(prod.stock) <= 0;
-    const isLowStock = Number(prod.stock) <= Number(prod.minStock) && !isOutOfStock;
+    const availableStock = getProductAvailableStock(prod);
+    const isOutOfStock = Number(availableStock) <= 0;
+    const isLowStock = Number(availableStock) <= Number(prod.minStock) && !isOutOfStock;
     
     const card = document.createElement('div');
     card.className = `product-card ${isOutOfStock ? 'out-of-stock' : ''}`;
@@ -1005,7 +1006,7 @@ function renderPOSProducts(searchQuery = '') {
       <h4 class="product-card-title">${prod.name}</h4>
       <div class="product-card-footer">
         <span class="product-card-price">${formatCurrency(prod.salePrice)}</span>
-        <span class="product-card-stock">Stock: <strong>${prod.stock}</strong></span>
+        <span class="product-card-stock">Stock: <strong>${availableStock}</strong></span>
       </div>
     `;
 
@@ -1024,10 +1025,11 @@ function addToCart(productId) {
   const prod = state.products.find(p => p.id === productId);
   if (!prod) return;
 
+  const availableStock = getProductAvailableStock(prod);
   const existingItemIndex = cart.findIndex(item => item.productId === productId);
   const currentQuantityInCart = existingItemIndex > -1 ? cart[existingItemIndex].quantity : 0;
 
-  if (currentQuantityInCart + 1 > prod.stock) {
+  if (currentQuantityInCart + 1 > availableStock) {
     showToast(`Stock insuficiente para agregar más de: ${prod.name}`, 'warning');
     return;
   }
@@ -1052,13 +1054,14 @@ function addToCart(productId) {
 function updateCartQty(index, newQty) {
   const item = cart[index];
   const prod = state.products.find(p => p.id === item.productId);
+  const availableStock = getProductAvailableStock(prod);
   
   if (newQty <= 0) {
     cart.splice(index, 1);
     showToast('Producto eliminado del ticket', 'info');
-  } else if (newQty > prod.stock) {
-    showToast(`Stock insuficiente. Solo quedan ${prod.stock} unidades.`, 'warning');
-    item.quantity = prod.stock;
+  } else if (newQty > availableStock) {
+    showToast(`Stock insuficiente. Solo quedan ${availableStock} unidades.`, 'warning');
+    item.quantity = availableStock;
   } else {
     item.quantity = newQty;
   }
@@ -1346,17 +1349,29 @@ function executeCheckout() {
 
   const finalTotal = Math.max(0, subtotal - totalDiscounts);
 
-  // Descontar del inventario
+  // Validar y descontar del inventario
   for (let item of cart) {
     const prod = state.products.find(p => p.id === item.productId);
     if (!prod) continue;
     
-    if (prod.stock < item.quantity) {
+    const availableStock = getProductAvailableStock(prod);
+    if (availableStock < item.quantity) {
       showToast(`Error crítico: Stock insuficiente en el transcurso de la venta para: ${prod.name}`, 'danger');
       return;
     }
     
-    prod.stock -= item.quantity;
+    // Si el producto tiene receta, descontamos de los insumos
+    if (prod.recipe && prod.recipe.length > 0) {
+      prod.recipe.forEach(recipeItem => {
+        const ingredient = state.products.find(p => p.id === recipeItem.id);
+        if (ingredient) {
+          ingredient.stock = Math.max(0, Number(ingredient.stock) - (item.quantity * Number(recipeItem.qty)));
+        }
+      });
+    } else {
+      // Si no tiene receta, descontamos del stock directo
+      prod.stock = Math.max(0, Number(prod.stock) - item.quantity);
+    }
   }
 
   // --- ACUMULAR PUNTOS NUEVOS (10% de cashback: 100 pesos en puntos por cada 1000 pesos pagados en efectivo/tarjeta) ---
@@ -1663,12 +1678,26 @@ function renderInventory(searchQuery = '') {
   filtered.forEach(p => {
     const prov = state.suppliers.find(s => s.id === p.supplierId);
     const provName = prov ? prov.name : '<span class="text-danger">No asignado</span>';
-    const isLow = Number(p.stock) <= Number(p.minStock);
+    
+    const availableStock = getProductAvailableStock(p);
+    const isLow = Number(availableStock) <= Number(p.minStock);
+    const hasRecipe = p.recipe && p.recipe.length > 0;
 
     const iconClass = p.icon || 'fa-solid fa-mug-hot';
     const iconColor = p.color || '#2563eb';
 
     const tr = document.createElement('tr');
+    
+    let nameDisplay = p.name;
+    if (p.posVisible === false) {
+      nameDisplay = `${p.name} <span style="font-size: 10px; color: var(--text-muted); font-style: italic;">(Insumo)</span>`;
+    }
+
+    let stockDisplay = `${availableStock} (min: ${p.minStock})`;
+    if (hasRecipe) {
+      stockDisplay = `${availableStock} <span class="badge-stock-calculated">Receta</span> (min: ${p.minStock})`;
+    }
+
     tr.innerHTML = `
       <td><strong>${p.sku}</strong></td>
       <td>
@@ -1676,13 +1705,13 @@ function renderInventory(searchQuery = '') {
           <i class="${iconClass}"></i>
         </div>
       </td>
-      <td>${p.name}</td>
+      <td>${nameDisplay}</td>
       <td><span class="badge badge-neutral">${p.category}</span></td>
       <td>${formatCurrency(p.costPrice)}</td>
       <td><strong>${formatCurrency(p.salePrice)}</strong></td>
       <td>
         <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">
-          ${p.stock} (min: ${p.minStock})
+          ${stockDisplay}
         </span>
       </td>
       <td>${provName}</td>
@@ -1707,6 +1736,8 @@ function openProductModal(prodId = null) {
 
   const previewBox = document.getElementById('product-preview-icon-box');
   const previewIcon = document.getElementById('product-preview-icon-element');
+  const recipeContainer = document.getElementById('recipe-ingredients-list');
+  recipeContainer.innerHTML = ''; // Limpiar ingredientes anteriores
 
   if (prodId) {
     const prod = state.products.find(p => p.id === prodId);
@@ -1722,7 +1753,17 @@ function openProductModal(prodId = null) {
     document.getElementById('product-cost-price').value = prod.costPrice;
     document.getElementById('product-sale-price').value = prod.salePrice;
     document.getElementById('product-supplier').value = prod.supplierId;
-    document.getElementById('product-pos-visible').checked = prod.posVisible !== false;
+    
+    const isPOSVisible = prod.posVisible !== false;
+    document.getElementById('product-pos-visible').checked = isPOSVisible;
+    document.getElementById('product-recipe-section').style.display = isPOSVisible ? 'block' : 'none';
+
+    // Cargar ingredientes si existen
+    if (prod.recipe && prod.recipe.length > 0) {
+      prod.recipe.forEach(item => {
+        addRecipeIngredientRow(item.id, item.qty, prod.id);
+      });
+    }
 
     // Determinar si el icono/color guardados eran personalizados o autodetectados
     const autodetected = getProductIconData(prod.name, prod.category);
@@ -1740,6 +1781,7 @@ function openProductModal(prodId = null) {
     document.getElementById('product-id').value = '';
     document.getElementById('product-sku').value = 'P41-' + Math.floor(1000 + Math.random() * 9000);
     document.getElementById('product-pos-visible').checked = true;
+    document.getElementById('product-recipe-section').style.display = 'block';
 
     document.getElementById('product-icon').value = 'auto';
     document.getElementById('product-color').value = 'auto';
@@ -1753,6 +1795,49 @@ function openProductModal(prodId = null) {
 }
 
 window.editProduct = openProductModal;
+
+// Agregar una fila para ingrediente/insumo en la receta
+function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') {
+  const container = document.getElementById('recipe-ingredients-list');
+  
+  // Filtrar productos que son insumos o materias primas
+  // Excluimos el producto actual para evitar auto-referencias circulares
+  const ingredientsList = state.products.filter(p => p.id !== excludeId);
+  
+  if (ingredientsList.length === 0) {
+    showToast('Debes crear insumos primero en el inventario para poder agregarlos a una receta', 'warning');
+    return;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'recipe-ingredient-row';
+  row.innerHTML = `
+    <select class="recipe-ing-select" required>
+      <option value="">-- Seleccionar insumo --</option>
+      ${ingredientsList.map(p => {
+        const isSelected = p.id === selectedId;
+        const tag = p.posVisible === false ? ' [Insumo]' : '';
+        return `<option value="${p.id}" ${isSelected ? 'selected' : ''}>${p.name} (${p.sku})${tag}</option>`;
+      }).join('')}
+    </select>
+    <input type="number" class="recipe-ing-qty" min="0.001" step="any" required placeholder="Cantidad" value="${quantity}">
+    <button type="button" class="btn-remove-ingredient" onclick="this.parentElement.remove()" title="Eliminar ingrediente">
+      <i class="fa-solid fa-trash-can"></i>
+    </button>
+  `;
+  container.appendChild(row);
+}
+window.addRecipeIngredientRow = addRecipeIngredientRow;
+
+// Toggles y botones del modal de productos
+document.getElementById('product-pos-visible')?.addEventListener('change', (e) => {
+  document.getElementById('product-recipe-section').style.display = e.target.checked ? 'block' : 'none';
+});
+
+document.getElementById('btn-add-recipe-ingredient')?.addEventListener('click', () => {
+  const currentId = document.getElementById('product-id').value;
+  addRecipeIngredientRow('', '', currentId);
+});
 
 function handleProductFormSubmit(e) {
   e.preventDefault();
@@ -1768,6 +1853,19 @@ function handleProductFormSubmit(e) {
   const salePrice = Number(document.getElementById('product-sale-price').value);
   const supplierId = document.getElementById('product-supplier').value;
   const posVisible = document.getElementById('product-pos-visible').checked;
+
+  // Recopilar ingredientes de receta
+  const recipe = [];
+  if (posVisible) {
+    const rows = document.querySelectorAll('.recipe-ingredient-row');
+    rows.forEach(row => {
+      const ingId = row.querySelector('.recipe-ing-select').value;
+      const ingQty = Number(row.querySelector('.recipe-ing-qty').value);
+      if (ingId && ingQty > 0) {
+        recipe.push({ id: ingId, qty: ingQty });
+      }
+    });
+  }
 
   const selectedIcon = document.getElementById('product-icon').value;
   const selectedColor = document.getElementById('product-color').value;
@@ -1789,7 +1887,8 @@ function handleProductFormSubmit(e) {
         id, name, sku, category, stock, minStock, costPrice, salePrice, supplierId, 
         icon: finalIcon, 
         color: finalColor,
-        posVisible
+        posVisible,
+        recipe
       };
       showToast('Producto actualizado correctamente');
     }
@@ -1799,7 +1898,8 @@ function handleProductFormSubmit(e) {
       name, sku, category, stock, minStock, costPrice, salePrice, supplierId,
       icon: finalIcon,
       color: finalColor,
-      posVisible
+      posVisible,
+      recipe
     };
     state.products.push(newProd);
     showToast('Producto creado con éxito');
@@ -4408,4 +4508,28 @@ document.getElementById('btn-confirm-pdf-import')?.addEventListener('click', asy
     showToast('No seleccionó ningún producto para importar', 'warning');
   }
 });
+
+// Función de utilidad para calcular el stock de recetas basado en la disponibilidad de insumos
+function getProductAvailableStock(prod) {
+  if (!prod.recipe || prod.recipe.length === 0) {
+    return Number(prod.stock);
+  }
+  
+  let minAvailable = Infinity;
+  prod.recipe.forEach(item => {
+    const ingredient = state.products.find(p => p.id === item.id);
+    if (ingredient) {
+      const availableForThis = Math.floor(Number(ingredient.stock) / Number(item.qty));
+      if (availableForThis < minAvailable) {
+        minAvailable = availableForThis;
+      }
+    } else {
+      minAvailable = 0; // Si falta un insumo
+    }
+  });
+  
+  return minAvailable === Infinity ? 0 : minAvailable;
+}
+window.getProductAvailableStock = getProductAvailableStock;
+
 
