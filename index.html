@@ -1010,12 +1010,22 @@
         </div>
 
         <div class="form-row">
-          <div class="form-group">
+          <div class="form-group" style="flex: 2;">
             <label for="product-stock">Stock Inicial *</label>
             <input type="number" id="product-stock" min="0" required value="10">
           </div>
-          <div class="form-group">
-            <label for="product-min-stock">Stock Mínimo (Alerta) *</label>
+          <div class="form-group" style="flex: 1;">
+            <label for="product-unit">Unidad *</label>
+            <select id="product-unit" required>
+              <option value="uds">uds</option>
+              <option value="g">g</option>
+              <option value="ml">ml</option>
+              <option value="kg">kg</option>
+              <option value="l">l</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex: 2;">
+            <label for="product-min-stock">Stock Mínimo *</label>
             <input type="number" id="product-min-stock" min="0" required value="3">
           </div>
         </div>
