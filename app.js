@@ -1,3 +1,4 @@
+
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -3883,4 +3884,377 @@ function renderAllViews() {
   else navigateTo(selectedView);
 }
 window.renderAllViews = renderAllViews;
+
+
+// ==========================================
+// --- MÓDULO DE IMPORTACIÓN DESDE PDF ---
+// ==========================================
+
+// Abrir modal de importación
+document.getElementById('btn-import-pdf')?.addEventListener('click', () => {
+  openModal('import-pdf-modal');
+  resetPDFImportUI();
+});
+
+function resetPDFImportUI() {
+  document.getElementById('pdf-upload-step').style.display = 'block';
+  document.getElementById('pdf-preview-step').style.display = 'none';
+  document.getElementById('btn-confirm-pdf-import').style.display = 'none';
+  document.getElementById('btn-confirm-pdf-import').disabled = true;
+  document.getElementById('pdf-file-input').value = '';
+  document.getElementById('pdf-items-tbody').innerHTML = '';
+}
+
+// Configurar Drag & Drop en el dropzone
+const dropzone = document.getElementById('pdf-dropzone');
+const fileInput = document.getElementById('pdf-file-input');
+
+dropzone?.addEventListener('click', () => fileInput.click());
+
+dropzone?.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropzone.classList.add('dragover');
+});
+
+dropzone?.addEventListener('dragleave', () => {
+  dropzone.classList.remove('dragover');
+});
+
+dropzone?.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files.length > 0 && files[0].type === 'application/pdf') {
+    processPDFFile(files[0]);
+  } else {
+    showToast('Por favor cargue un archivo PDF válido', 'danger');
+  }
+});
+
+fileInput?.addEventListener('change', (e) => {
+  const files = e.target.files;
+  if (files.length > 0) {
+    processPDFFile(files[0]);
+  }
+});
+
+// Cambiar archivo
+document.getElementById('btn-pdf-reset')?.addEventListener('click', () => {
+  resetPDFImportUI();
+});
+
+// Procesar lectura del PDF
+function processPDFFile(file) {
+  showToast('Leyendo archivo PDF...', 'info');
+  const reader = new FileReader();
+  
+  reader.onload = async function() {
+    try {
+      const arrayBuffer = this.result;
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      let allTextItems = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        
+        const items = textContent.items.map(item => ({
+          text: item.str.trim(),
+          x: item.transform[4],
+          y: item.transform[5],
+          width: item.width,
+          height: item.height
+        }));
+        allTextItems = allTextItems.concat(items);
+      }
+
+      const rows = groupTextItemsIntoRows(allTextItems);
+      const parsedProducts = parseRowsToProducts(rows);
+
+      if (parsedProducts.length === 0) {
+        showToast('No se detectaron tablas de productos en el PDF', 'warning');
+        return;
+      }
+
+      renderPDFPreviewTable(parsedProducts);
+    } catch (err) {
+      console.error('Error al parsear PDF:', err);
+      showToast('Error al leer el archivo PDF', 'danger');
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+// Agrupar items de texto por coordenadas horizontales (líneas de filas)
+function groupTextItemsIntoRows(items) {
+  const activeItems = items.filter(item => item.text.length > 0);
+  if (activeItems.length === 0) return [];
+
+  const rows = [];
+  activeItems.forEach(item => {
+    let foundRow = rows.find(r => Math.abs(r.y - item.y) < 5);
+    if (foundRow) {
+      foundRow.items.push(item);
+    } else {
+      rows.push({
+        y: item.y,
+        items: [item]
+      });
+    }
+  });
+
+  // Ordenar filas de arriba a abajo (mayor Y a menor Y)
+  rows.sort((a, b) => b.y - a.y);
+
+  // Ordenar elementos en cada fila de izquierda a derecha (menor X a mayor X)
+  rows.forEach(row => {
+    row.items.sort((a, b) => a.x - b.x);
+  });
+
+  return rows;
+}
+
+// Heurística de conversión de filas a productos estructurados
+function parseRowsToProducts(rows) {
+  const products = [];
+  
+  rows.forEach(row => {
+    const textParts = row.items.map(item => item.text);
+    const fullRowText = textParts.join(" ");
+
+    // Saltar cabeceras o filas de totales
+    if (
+      fullRowText.includes("FACTURA") || 
+      fullRowText.includes("RUT:") || 
+      fullRowText.includes("TOTAL") || 
+      fullRowText.includes("NETO") || 
+      fullRowText.includes("IVA") ||
+      fullRowText.includes("Subtotal") ||
+      fullRowText.includes("Señor") ||
+      fullRowText.includes("R.U.T.") ||
+      fullRowText.includes("GIRO:")
+    ) {
+      return;
+    }
+
+    // Reconstruir columnas lógicas según espacio horizontal X
+    const cols = [];
+    let currentCol = null;
+    
+    row.items.forEach(item => {
+      if (!currentCol) {
+        currentCol = { text: item.text, minX: item.x, maxX: item.x + item.width };
+      } else {
+        const distance = item.x - currentCol.maxX;
+        if (distance < 20) {
+          currentCol.text += " " + item.text;
+          currentCol.maxX = Math.max(currentCol.maxX, item.x + item.width);
+        } else {
+          cols.push(currentCol);
+          currentCol = { text: item.text, minX: item.x, maxX: item.x + item.width };
+        }
+      }
+    });
+    if (currentCol) cols.push(currentCol);
+
+    const cleanedCols = cols.map(c => ({
+      text: c.text.trim(),
+      minX: c.minX
+    })).filter(c => c.text.length > 0);
+
+    // Mínimo 3 columnas para ser una fila de tabla válida (ej: Cantidad, Detalle, Precio)
+    if (cleanedCols.length >= 3) {
+      let name = "";
+      let quantity = 1;
+      let costPrice = 0;
+      let sku = "";
+
+      // 1. La columna de descripción suele ser el texto más largo
+      let descColIdx = -1;
+      let maxLen = 0;
+      cleanedCols.forEach((col, idx) => {
+        if (col.text.length > maxLen) {
+          maxLen = col.text.length;
+          descColIdx = idx;
+        }
+      });
+
+      if (descColIdx === -1) return;
+      name = cleanedCols[descColIdx].text;
+
+      // Ignorar si parece solo números
+      if (name.length < 3 || /^\d+$/.test(name.replace(/[\s\.\,\-]/g, ""))) {
+        return;
+      }
+
+      // 2. Analizar el resto de columnas para buscar números (cantidades y precios)
+      const otherCols = cleanedCols.filter((_, idx) => idx !== descColIdx);
+      const numbers = [];
+
+      otherCols.forEach(col => {
+        const cleanNumStr = col.text.replace(/[^0-9]/g, "");
+        const val = parseInt(cleanNumStr, 10);
+        if (!isNaN(val) && val > 0) {
+          numbers.push({
+            value: val,
+            minX: col.minX
+          });
+        } else if (col.text.length > 3 && sku === "") {
+          sku = col.text; // Usar el texto no numérico largo restante como SKU aproximado
+        }
+      });
+
+      // El menor es cantidad, el mediano es costo unitario, el mayor es el total de la línea
+      if (numbers.length >= 2) {
+        numbers.sort((a, b) => a.value - b.value);
+        quantity = numbers[0].value;
+        costPrice = numbers[1].value;
+
+        if (quantity > 1000 && costPrice > 1000) {
+          costPrice = Math.min(quantity, costPrice);
+          quantity = 1;
+        }
+      } else if (numbers.length === 1) {
+        costPrice = numbers[0].value;
+        quantity = 1;
+      }
+
+      if (costPrice === 0) return;
+
+      // Limpiar signos monetarios del nombre
+      name = name.replace(/\$\s*\d+[\d\.\,]*$/, "").trim();
+
+      products.push({
+        name,
+        sku: sku || 'PDF-' + Math.floor(1000 + Math.random() * 9000),
+        costPrice,
+        quantity
+      });
+    }
+  });
+
+  return products;
+}
+
+// Renderizar la tabla de previsualización para confirmación
+function renderPDFPreviewTable(products) {
+  const tbody = document.getElementById('pdf-items-tbody');
+  tbody.innerHTML = '';
+
+  // Obtener categorías únicas del sistema
+  const categories = [...new Set(state.products.map(p => p.category))];
+  if (categories.length === 0) categories.push('Café', 'Repostería', 'Bebidas');
+
+  products.forEach((prod, index) => {
+    // Buscar si el producto ya existe por SKU o por nombre (insensible a mayúsculas)
+    const existing = state.products.find(p => p.sku === prod.sku || p.name.toLowerCase() === prod.name.toLowerCase());
+    
+    const status = existing ? 'update' : 'new';
+    const statusBadge = status === 'update' 
+      ? '<span class="badge-import-status update">Actualizar</span>' 
+      : '<span class="badge-import-status new">Nuevo</span>';
+
+    const finalSku = existing ? existing.sku : prod.sku;
+    const finalCategory = existing ? existing.category : categories[0];
+    const finalSalePrice = existing ? existing.salePrice : Math.round(prod.costPrice * 1.5);
+
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td style="text-align: center;">
+        <input type="checkbox" class="pdf-row-select" data-index="${index}" checked>
+      </td>
+      <td>
+        <input type="text" class="pdf-row-sku pdf-row-select" value="${finalSku}" data-index="${index}">
+      </td>
+      <td>
+        <input type="text" class="pdf-row-name pdf-row-select" style="width: 100%;" value="${prod.name}" data-index="${index}">
+      </td>
+      <td>
+        <select class="pdf-row-category pdf-row-select" data-index="${index}">
+          ${categories.map(cat => `<option value="${cat}" ${cat === finalCategory ? 'selected' : ''}>${cat}</option>`).join('')}
+        </select>
+      </td>
+      <td style="text-align: right;">
+        <input type="number" class="pdf-row-price pdf-row-cost" value="${prod.costPrice}" data-index="${index}">
+      </td>
+      <td style="text-align: right;">
+        <input type="number" class="pdf-row-price pdf-row-sale" value="${finalSalePrice}" data-index="${index}">
+      </td>
+      <td style="text-align: center;">
+        <input type="number" class="pdf-row-price pdf-row-qty" style="width: 50px; text-align: center;" value="${prod.quantity}" data-index="${index}">
+      </td>
+      <td style="text-align: center;">
+        ${statusBadge}
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  document.getElementById('pdf-detected-count').innerText = products.length;
+  document.getElementById('pdf-upload-step').style.display = 'none';
+  document.getElementById('pdf-preview-step').style.display = 'block';
+  document.getElementById('btn-confirm-pdf-import').style.display = 'inline-block';
+  document.getElementById('btn-confirm-pdf-import').disabled = false;
+}
+
+// Ejecutar importación al inventario
+document.getElementById('btn-confirm-pdf-import')?.addEventListener('click', async () => {
+  const tbody = document.getElementById('pdf-items-tbody');
+  const rows = tbody.querySelectorAll('tr');
+  let importedCount = 0;
+
+  rows.forEach(row => {
+    const selected = row.querySelector('.pdf-row-select').checked;
+    if (!selected) return;
+
+    const index = row.querySelector('.pdf-row-select').getAttribute('data-index');
+    const sku = row.querySelector('.pdf-row-sku').value.trim();
+    const name = row.querySelector('.pdf-row-name').value.trim();
+    const category = row.querySelector('.pdf-row-category').value;
+    const costPrice = parseFloat(row.querySelector('.pdf-row-cost').value) || 0;
+    const salePrice = parseFloat(row.querySelector('.pdf-row-sale').value) || 0;
+    const qty = parseFloat(row.querySelector('.pdf-row-qty').value) || 0;
+
+    // Buscar si ya existe por SKU o por Nombre original
+    const existingIdx = state.products.findIndex(p => p.sku === sku || p.name.toLowerCase() === name.toLowerCase());
+
+    if (existingIdx > -1) {
+      // Actualizar producto existente
+      state.products[existingIdx].stock = Number(state.products[existingIdx].stock) + qty;
+      state.products[existingIdx].costPrice = costPrice;
+      state.products[existingIdx].salePrice = salePrice;
+      state.products[existingIdx].category = category;
+      state.products[existingIdx].name = name;
+    } else {
+      // Crear producto nuevo
+      const iconData = getProductIconData(name, category);
+      const newProduct = {
+        id: 'prod-' + Date.now() + Math.floor(Math.random() * 1000),
+        name,
+        sku,
+        category,
+        stock: qty,
+        minStock: 2,
+        costPrice,
+        salePrice,
+        supplierId: null,
+        icon: iconData.icon,
+        color: iconData.color
+      };
+      state.products.push(newProduct);
+    }
+    importedCount++;
+  });
+
+  if (importedCount > 0) {
+    saveStateToLocalStorage(); // Esto dispara syncStateToSupabase() automáticamente en el fondo
+    showToast(`¡Éxito! Se importaron/actualizaron ${importedCount} productos.`, 'success');
+    renderInventory();
+    closeModal('import-pdf-modal');
+  } else {
+    showToast('No seleccionó ningún producto para importar', 'warning');
+  }
+});
 
