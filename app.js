@@ -12,7 +12,7 @@ let state = {
 };
 
 // --- CONFIGURACIÓN SUPABASE ---
-let supabase = null;
+let supabaseClient = null;
 
 let cart = [];
 let cartDiscount = { value: 0, type: 'percent' }; // percent o fixed
@@ -71,14 +71,14 @@ async function initSupabaseAsync() {
       });
 
       if (window.supabase) {
-        supabase = window.supabase.createClient(resConfig.supabaseUrl, resConfig.supabaseKey);
+        supabaseClient = window.supabase.createClient(resConfig.supabaseUrl, resConfig.supabaseKey);
       }
     }
   } catch (err) {
     console.warn('No se pudo obtener la configuración de Supabase desde el servidor, usando modo offline.');
   }
 
-  if (supabase) {
+  if (supabaseClient) {
     loadStateFromSupabase();
   }
 }
@@ -154,7 +154,7 @@ function saveStateToLocalStorage() {
   if (claveInput) localStorage.setItem('p41_sii_clave', claveInput.value);
 
   // Sincronizar en segundo plano con Supabase Cloud
-  if (supabase) {
+  if (supabaseClient) {
     syncStateToSupabase();
   }
 }
@@ -1806,8 +1806,8 @@ function deleteProduct(prodId) {
   if (confirm('¿Está seguro de eliminar este producto?')) {
     state.products = state.products.filter(p => p.id !== prodId);
     saveStateToLocalStorage();
-    if (supabase) {
-      supabase.from('products').delete().eq('id', prodId).then(() => {});
+    if (supabaseClient) {
+      supabaseClient.from('products').delete().eq('id', prodId).then(() => {});
     }
     renderInventory();
     showToast('Producto eliminado del inventario', 'warning');
@@ -1937,8 +1937,8 @@ function deleteClient(cliId) {
     });
 
     saveStateToLocalStorage();
-    if (supabase) {
-      supabase.from('clients').delete().eq('id', cliId).then(() => {});
+    if (supabaseClient) {
+      supabaseClient.from('clients').delete().eq('id', cliId).then(() => {});
     }
     renderClients();
     showToast('Cliente eliminado del directorio', 'warning');
@@ -2063,8 +2063,8 @@ function deleteSupplier(supId) {
   if (confirm('¿Está seguro de eliminar este proveedor?')) {
     state.suppliers = state.suppliers.filter(s => s.id !== supId);
     saveStateToLocalStorage();
-    if (supabase) {
-      supabase.from('suppliers').delete().eq('id', supId).then(() => {});
+    if (supabaseClient) {
+      supabaseClient.from('suppliers').delete().eq('id', supId).then(() => {});
     }
     renderSuppliers();
     showToast('Proveedor eliminado del registro', 'warning');
@@ -3791,17 +3791,17 @@ window.submitSIICaptcha = submitSIICaptcha;
 
 // --- SINCRONIZACIÓN CON SUPABASE CLOUD ---
 async function loadStateFromSupabase() {
-  if (!supabase) return;
+  if (!supabaseClient) return;
   
   try {
     showToast('Sincronizando base de datos en la nube...', 'info');
 
     // Cargar tablas en paralelo
     const [resProd, resCli, resSup, resSal] = await Promise.all([
-      supabase.from('products').select('*'),
-      supabase.from('clients').select('*'),
-      supabase.from('suppliers').select('*'),
-      supabase.from('sales').select('*')
+      supabaseClient.from('products').select('*'),
+      supabaseClient.from('clients').select('*'),
+      supabaseClient.from('suppliers').select('*'),
+      supabaseClient.from('sales').select('*')
     ]);
 
     if (resProd.error) throw resProd.error;
@@ -3844,27 +3844,27 @@ async function loadStateFromSupabase() {
 window.loadStateFromSupabase = loadStateFromSupabase;
 
 async function syncStateToSupabase() {
-  if (!supabase) return;
+  if (!supabaseClient) return;
   
   try {
     // Sincronizar productos
     if (state.products.length > 0) {
-      const { error } = await supabase.from('products').upsert(state.products);
+      const { error } = await supabaseClient.from('products').upsert(state.products);
       if (error) throw error;
     }
     // Sincronizar clientes
     if (state.clients.length > 0) {
-      const { error } = await supabase.from('clients').upsert(state.clients);
+      const { error } = await supabaseClient.from('clients').upsert(state.clients);
       if (error) throw error;
     }
     // Sincronizar proveedores
     if (state.suppliers.length > 0) {
-      const { error } = await supabase.from('suppliers').upsert(state.suppliers);
+      const { error } = await supabaseClient.from('suppliers').upsert(state.suppliers);
       if (error) throw error;
     }
     // Sincronizar ventas
     if (state.sales.length > 0) {
-      const { error } = await supabase.from('sales').upsert(state.sales);
+      const { error } = await supabaseClient.from('sales').upsert(state.sales);
       if (error) throw error;
     }
     console.log('Datos guardados y sincronizados con éxito en Supabase.');
