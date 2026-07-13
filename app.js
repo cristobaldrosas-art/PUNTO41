@@ -2396,7 +2396,7 @@ function updateModalRecipeCost() {
   const supplierLabel = supplierSelect ? supplierSelect.parentElement.querySelector('label') : null;
 
   if (rows.length > 0) {
-    const finalCost = Math.round(totalCost);
+    const finalCost = Number(totalCost.toFixed(4));
     const finalStock = minAvailable === Infinity ? 0 : minAvailable;
     
     console.log(`Resultado final -> Costo calculado: ${finalCost}, Stock calculado: ${finalStock}`);
@@ -3136,7 +3136,18 @@ function closeModal(modalId) {
 window.closeModal = closeModal;
 
 function formatCurrency(val) {
-  return '$' + Math.round(val).toLocaleString('es-CL');
+  const num = Number(val);
+  if (isNaN(num)) return '$0';
+  
+  if (num % 1 !== 0) {
+    // Si es un valor muy pequeño menor a $1, mostramos hasta 4 decimales
+    const decimals = num < 1 ? 4 : 2;
+    return '$' + num.toLocaleString('es-CL', { 
+      minimumFractionDigits: decimals, 
+      maximumFractionDigits: decimals 
+    });
+  }
+  return '$' + Math.round(num).toLocaleString('es-CL');
 }
 
 function capitalize(str) {
@@ -5149,7 +5160,7 @@ function getProductCalculatedCost(prod) {
     }
   });
   
-  return Math.round(totalCost);
+  return Number(totalCost.toFixed(4));
 }
 window.getProductCalculatedCost = getProductCalculatedCost;
 
