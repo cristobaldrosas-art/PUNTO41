@@ -53,11 +53,13 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+  text-transform: uppercase; /* Todo el sistema automáticamente en mayúsculas */
 }
 
 input, select, textarea, button {
   font-family: inherit;
   font-size: 14px;
+  text-transform: uppercase; /* Entradas en mayúsculas */
 }
 
 a {
@@ -2212,5 +2214,28 @@ a {
   display: inline-block;
   margin-top: 4px;
 }
+
+/* Exclusión de mayúsculas para elementos específicos */
+i, .fa-solid, .fa-regular, .fa-brands, .fa, 
+input[type="password"], input[type="email"], 
+.pr-email, .det-email, .contact-supplier-email,
+.exclude-uppercase {
+  text-transform: none !important;
+}
+
+/* Fila de ingrediente responsiva en pantallas chicas */
+@media (max-width: 768px) {
+  .recipe-ingredient-row {
+    grid-template-columns: 1fr 70px 25px 25px !important;
+    gap: 4px !important;
+    padding: 6px 4px !important;
+  }
+  .recipe-ingredient-row select,
+  .recipe-ingredient-row input {
+    font-size: 11px !important;
+    padding: 4px !important;
+  }
+}
+
 
 
