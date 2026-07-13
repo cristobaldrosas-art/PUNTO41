@@ -21,6 +21,18 @@ let salesChartInstance = null;
 let currentReportRange = 'diario';
 let activeRole = 'cajero'; // admin o cajero
 
+// --- NUEVAS CONFIGURACIONES (PIN, IDIOMA Y CAJA) ---
+let adminPasscode = localStorage.getItem('p41_admin_passcode') || '6707';
+let currentLanguage = localStorage.getItem('p41_language') || 'es';
+let cashRegister = JSON.parse(localStorage.getItem('p41_cash_register')) || {
+  open: false,
+  initialAmount: 0,
+  salesCash: 0,
+  salesCard: 0,
+  salesTransfer: 0,
+  openTime: null
+};
+
 // --- INICIALIZADOR Y SEED DATA (SEMILLA) ---
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
@@ -41,6 +53,28 @@ function initApp() {
   updateCurrentDateDisplay();
   navigateTo(selectedView);
   checkLowStockAlerts();
+  
+  // Aplicar idioma y estado de caja inicial
+  applyLanguage(currentLanguage);
+  updateCashRegisterUI();
+  
+  // Formateadores de RUT
+  setupRutFormatting('client-rut');
+  setupRutFormatting('supplier-rut');
+  
+  // Convertir todas las entradas de texto a mayúsculas en tiempo real
+  document.addEventListener('input', (e) => {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'text') {
+      if (e.target.id !== 'settings-sii-clave' && e.target.type !== 'password' && e.target.type !== 'email') {
+        const start = e.target.selectionStart;
+        const end = e.target.selectionEnd;
+        e.target.value = e.target.value.toUpperCase();
+        if (start !== null) {
+          e.target.setSelectionRange(start, end);
+        }
+      }
+    }
+  });
 
   // Si no hay datos locales, sembrar datos de prueba iniciales de inmediato para no ver pantalla vacía
   const wasCleared = localStorage.getItem('p41_cleared');
@@ -144,10 +178,18 @@ function loadStateFromLocalStorage() {
   if (tuuDeviceInput) tuuDeviceInput.value = tuuDevice;
   if (tuuActiveCheckbox) tuuActiveCheckbox.checked = tuuActive;
 
-  // Verificar estado de conexión en la nube inicial
-  if (eboletaActive) {
-    setTimeout(checkSIIConnectionStatus, 1000);
+  // Cargar PIN, idioma y caja
+  adminPasscode = localStorage.getItem('p41_admin_passcode') || '6707';
+  currentLanguage = localStorage.getItem('p41_language') || 'es';
+  
+  const savedCaja = localStorage.getItem('p41_cash_register');
+  if (savedCaja) {
+    cashRegister = JSON.parse(savedCaja);
   }
+
+  // Pre-rellenar selector de idioma en configuración
+  const langSelect = document.getElementById('settings-language');
+  if (langSelect) langSelect.value = currentLanguage;
 }
 
 function saveStateToLocalStorage(showToastAlert = false) {
@@ -390,6 +432,39 @@ function setupEventListeners() {
       navigateTo(target);
     });
   });
+
+  // Botón de alternar caja (Abrir/Cerrar Caja)
+  const toggleCajaBtn = document.getElementById('btn-cash-register-toggle');
+  if (toggleCajaBtn) {
+    toggleCajaBtn.addEventListener('click', () => {
+      if (cashRegister.open) {
+        // Cargar montos en el modal de cierre
+        document.getElementById('close-caja-opening-val').innerText = formatCurrency(cashRegister.initialAmount);
+        document.getElementById('close-caja-cash-val').innerText = formatCurrency(cashRegister.salesCash);
+        document.getElementById('close-caja-card-val').innerText = formatCurrency(cashRegister.salesCard);
+        document.getElementById('close-caja-transfer-val').innerText = formatCurrency(cashRegister.salesTransfer);
+        
+        const expectedCash = Number(cashRegister.initialAmount) + Number(cashRegister.salesCash);
+        const totalRevenue = Number(cashRegister.salesCash) + Number(cashRegister.salesCard) + Number(cashRegister.salesTransfer);
+        
+        document.getElementById('close-caja-expected-cash-val').innerText = formatCurrency(expectedCash);
+        document.getElementById('close-caja-total-revenue-val').innerText = formatCurrency(totalRevenue);
+        
+        openModal('close-caja-modal');
+      } else {
+        openModal('open-caja-modal');
+      }
+    });
+  }
+
+  // Filtro de categorías del Inventario
+  const invCatFilter = document.getElementById('inventory-category-filter');
+  if (invCatFilter) {
+    invCatFilter.addEventListener('change', () => {
+      const searchVal = document.getElementById('inventory-search')?.value || '';
+      renderInventory(searchVal);
+    });
+  }
 
   // GESTIÓN DE ROLES / PERFILES
   document.getElementById('app-role-select').addEventListener('change', (e) => {
@@ -848,15 +923,15 @@ function navigateTo(viewId) {
   }
 
   const titles = {
-    dashboard: 'Resumen Diario - Dashboard',
-    pos: 'Terminal de Ventas (POS)',
-    inventory: 'Control de Inventario',
-    clients: 'Directorio de Clientes',
-    suppliers: 'Directorio de Proveedores',
-    reports: 'Informes Financieros y Gráficos',
-    settings: 'Configuración del Sistema'
+    dashboard: currentLanguage === 'es' ? 'Resumen Diario - Dashboard' : 'Daily Summary - Dashboard',
+    pos: currentLanguage === 'es' ? 'Terminal de Ventas (POS)' : 'Sales Terminal (POS)',
+    inventory: currentLanguage === 'es' ? 'Control de Inventario' : 'Inventory Control',
+    clients: currentLanguage === 'es' ? 'Directorio de Clientes' : 'Clients Directory',
+    suppliers: currentLanguage === 'es' ? 'Directorio de Proveedores' : 'Suppliers Directory',
+    reports: currentLanguage === 'es' ? 'Informes Financieros y Gráficos' : 'Financial Reports & Charts',
+    settings: currentLanguage === 'es' ? 'Configuración del Sistema' : 'System Settings'
   };
-  document.getElementById('current-view-title').innerText = titles[viewId] || 'Punto 41';
+  document.getElementById('current-view-title').innerText = (titles[viewId] || 'Punto 41').toUpperCase();
 
   if (viewId === 'dashboard') {
     renderDashboard();
@@ -1097,6 +1172,12 @@ function renderPOSProducts(searchQuery = '') {
 
 // --- OPERACIONES DE CARRITO ---
 function addToCart(productId) {
+  if (!cashRegister.open) {
+    showToast('Debe abrir la caja para comenzar a realizar ventas.', 'warning');
+    openModal('open-caja-modal');
+    return;
+  }
+
   const prod = state.products.find(p => p.id === productId);
   if (!prod) return;
 
@@ -1370,6 +1451,12 @@ function handleDiscountFormSubmit(e) {
 
 // --- CONFIRMAR VENTA (CHECKOUT) ---
 function executeCheckout() {
+  if (!cashRegister.open) {
+    showToast('Debe abrir la caja para realizar una venta.', 'warning');
+    openModal('open-caja-modal');
+    return;
+  }
+
   if (cart.length === 0) {
     showToast('No hay productos en el carrito para realizar una venta.', 'warning');
     return;
@@ -1516,6 +1603,20 @@ function executeCheckout() {
 // Completar la venta final, descontar inventario (ya hecho antes), emitir boleta en SII si aplica e imprimir voucher
 function completeCheckoutFinal(newSale, finalTotal, paymentMethod, client, pointsEarned) {
   state.sales.push(newSale);
+  
+  // Acumular en los totales de caja activa
+  if (cashRegister.open) {
+    if (paymentMethod === 'efectivo') {
+      cashRegister.salesCash = Number(cashRegister.salesCash) + Number(finalTotal);
+    } else if (paymentMethod === 'tarjeta') {
+      cashRegister.salesCard = Number(cashRegister.salesCard) + Number(finalTotal);
+    } else if (paymentMethod === 'transferencia') {
+      cashRegister.salesTransfer = Number(cashRegister.salesTransfer) + Number(finalTotal);
+    }
+    localStorage.setItem('p41_cash_register', JSON.stringify(cashRegister));
+    updateCashRegisterUI();
+  }
+
   saveStateToLocalStorage();
 
 
@@ -1948,9 +2049,28 @@ function renderInventory(searchQuery = '') {
     supplierSelect.appendChild(opt);
   });
 
+  // Poblar dinámicamente el selector de filtros de categorías en inventario
+  const categoryFilter = document.getElementById('inventory-category-filter');
+  if (categoryFilter) {
+    const currentFilterVal = categoryFilter.value;
+    const categories = [...new Set(state.products.map(p => p.category))].filter(Boolean);
+    categoryFilter.innerHTML = '<option value="">-- TODAS LAS CATEGORÍAS --</option>';
+    categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.innerText = cat;
+      if (cat === currentFilterVal) {
+        opt.selected = true;
+      }
+      categoryFilter.appendChild(opt);
+    });
+  }
+
   const query = getNormalizedText(searchQuery);
+  const selectedCategory = categoryFilter ? categoryFilter.value : '';
 
   const filtered = state.products.filter(p => {
+    if (selectedCategory && p.category !== selectedCategory) return false;
     if (!query) return true;
     
     const prov = state.suppliers.find(s => s.id === p.supplierId);
@@ -4136,7 +4256,7 @@ function verifyPasscode() {
   const modalContent = document.getElementById('passcode-modal-content');
   if (!input || !modalContent) return;
 
-  if (input.value === '6707') {
+  if (input.value === adminPasscode) {
     activeRole = 'admin';
     closeModal('passcode-modal');
     applyRoleRestrictions();
@@ -4316,6 +4436,11 @@ async function loadStateFromSupabase() {
           localStorage.setItem('p41_tuu_device', cfg.tuuDevice || '');
           localStorage.setItem('p41_tuu_active', cfg.tuuActive ? 'true' : 'false');
           
+          localStorage.setItem('p41_admin_passcode', cfg.adminPasscode || '6707');
+          localStorage.setItem('p41_language', cfg.language || 'es');
+          adminPasscode = cfg.adminPasscode || '6707';
+          currentLanguage = cfg.language || 'es';
+          
           const tuuApiKeyInput = document.getElementById('settings-tuu-apikey');
           const tuuDeviceInput = document.getElementById('settings-tuu-device');
           const tuuActiveCheckbox = document.getElementById('settings-tuu-active');
@@ -4323,6 +4448,9 @@ async function loadStateFromSupabase() {
           if (tuuApiKeyInput) tuuApiKeyInput.value = cfg.tuuApiKey || '';
           if (tuuDeviceInput) tuuDeviceInput.value = cfg.tuuDevice || '';
           if (tuuActiveCheckbox) tuuActiveCheckbox.checked = !!cfg.tuuActive;
+          
+          // Aplicar idioma descargado
+          applyLanguage(currentLanguage);
         }
       }
     } catch (cfgErr) {
@@ -4392,7 +4520,9 @@ async function syncStateToSupabase() {
         value: {
           tuuApiKey,
           tuuDevice,
-          tuuActive
+          tuuActive,
+          adminPasscode,
+          language: currentLanguage
         }
       };
       await supabaseClient.from('configs').upsert([settingsObj]);
@@ -4987,5 +5117,274 @@ function getProductCalculatedCost(prod) {
   return Math.round(totalCost);
 }
 window.getProductCalculatedCost = getProductCalculatedCost;
+
+// --- TRADUCCIONES E IDIOMA ---
+const translations = {
+  es: {
+    dashboard: "Dashboard",
+    pos: "Punto de Venta",
+    inventory: "Inventario",
+    clients: "Clientes",
+    suppliers: "Proveedores",
+    reports: "Reportes",
+    settings: "Configuración"
+  },
+  en: {
+    dashboard: "Dashboard",
+    pos: "Point of Sale",
+    inventory: "Inventory",
+    clients: "Clients",
+    suppliers: "Suppliers",
+    reports: "Reports",
+    settings: "Settings"
+  }
+};
+
+function applyLanguage(lang) {
+  currentLanguage = lang;
+  localStorage.setItem('p41_language', lang);
+  
+  const t = translations[lang] || translations['es'];
+  
+  // Traducir menú lateral
+  document.querySelectorAll('.sidebar-menu .menu-item').forEach(item => {
+    const target = item.getAttribute('data-target');
+    const span = item.querySelector('span');
+    if (span && t[target]) {
+      span.innerText = t[target];
+    }
+  });
+
+  // Traducir barra de navegación móvil
+  document.querySelectorAll('.mobile-tab-bar .tab-item').forEach(item => {
+    const target = item.getAttribute('data-target');
+    const span = item.querySelector('span');
+    if (span) {
+      if (target === 'dashboard') span.innerText = lang === 'es' ? 'Inicio' : 'Home';
+      else if (target === 'pos') span.innerText = lang === 'es' ? 'Caja' : 'POS';
+      else if (target === 'inventory') span.innerText = lang === 'es' ? 'Inventario' : 'Inventory';
+      else if (target === 'reports') span.innerText = lang === 'es' ? 'Reportes' : 'Reports';
+      else if (target === 'settings') span.innerText = lang === 'es' ? 'Ajustes' : 'Settings';
+    }
+  });
+
+  // Actualizar selector
+  const select = document.getElementById('settings-language');
+  if (select) select.value = lang;
+
+  // Actualizar título de la sección activa
+  navigateTo(selectedView);
+}
+window.applyLanguage = applyLanguage;
+
+function changeLanguage(lang) {
+  applyLanguage(lang);
+  showToast(lang === 'es' ? 'Idioma cambiado a Español' : 'Language changed to English', 'success');
+}
+window.changeLanguage = changeLanguage;
+
+// --- CONTROL DE APERTURA Y CIERRE DE CAJA ---
+function updateCashRegisterUI() {
+  const toggleBtn = document.getElementById('btn-cash-register-toggle');
+  const icon = document.getElementById('cash-register-icon');
+  const label = document.getElementById('cash-register-label');
+  
+  if (!toggleBtn || !icon || !label) return;
+  
+  if (cashRegister.open) {
+    toggleBtn.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+    toggleBtn.style.color = 'var(--success)';
+    toggleBtn.style.borderColor = 'var(--success)';
+    icon.className = 'fa-solid fa-circle-check';
+    label.innerText = 'CAJA ABIERTA';
+  } else {
+    toggleBtn.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+    toggleBtn.style.color = 'var(--danger)';
+    toggleBtn.style.borderColor = 'var(--danger)';
+    icon.className = 'fa-solid fa-circle-xmark';
+    label.innerText = 'CAJA CERRADA';
+  }
+}
+window.updateCashRegisterUI = updateCashRegisterUI;
+
+function executeOpenCaja(event) {
+  event.preventDefault();
+  const input = document.getElementById('open-caja-amount');
+  if (!input) return;
+  const val = Number(input.value);
+  if (isNaN(val) || val < 0) {
+    showToast('El monto inicial debe ser un número válido igual o mayor a cero.', 'danger');
+    return;
+  }
+  
+  cashRegister = {
+    open: true,
+    initialAmount: val,
+    salesCash: 0,
+    salesCard: 0,
+    salesTransfer: 0,
+    openTime: new Date().toISOString()
+  };
+  localStorage.setItem('p41_cash_register', JSON.stringify(cashRegister));
+  
+  closeModal('open-caja-modal');
+  showToast(`Caja abierta con un monto inicial de ${formatCurrency(val)}.`, 'success');
+  input.value = '';
+  
+  updateCashRegisterUI();
+}
+window.executeOpenCaja = executeOpenCaja;
+
+function generateCajaPDF(caja) {
+  const container = document.getElementById('print-report-template');
+  const openTimeStr = new Date(caja.openTime).toLocaleString('es-CL');
+  const closeTimeStr = new Date().toLocaleString('es-CL');
+  const expectedCash = Number(caja.initialAmount) + Number(caja.salesCash);
+  const totalRevenue = Number(caja.salesCash) + Number(caja.salesCard) + Number(caja.salesTransfer);
+
+  container.innerHTML = `
+    <div class="corporate-report-header">
+      <div class="corporate-report-brand">
+        <h1>PUNTO 41</h1>
+        <span>COFFEELAB</span>
+      </div>
+      <div class="corporate-report-title-section">
+        <h2>REPORTE CIERRE DE CAJA</h2>
+        <p>FECHA CIERRE: ${closeTimeStr}</p>
+      </div>
+    </div>
+
+    <div class="corporate-report-summary-grid">
+      <div class="corporate-report-summary-card">
+        <h4>APERTURA CAJA</h4>
+        <p>${openTimeStr}</p>
+      </div>
+      <div class="corporate-report-summary-card">
+        <h4>MONTO INICIAL</h4>
+        <p>${formatCurrency(caja.initialAmount)}</p>
+      </div>
+      <div class="corporate-report-summary-card">
+        <h4>RECAUDACIÓN TOTAL</h4>
+        <p>${formatCurrency(totalRevenue)}</p>
+      </div>
+      <div class="corporate-report-summary-card">
+        <h4>EFECTIVO ESPERADO</h4>
+        <p>${formatCurrency(expectedCash)}</p>
+      </div>
+    </div>
+
+    <table class="corporate-report-table">
+      <thead>
+        <tr>
+          <th>MÉTODO DE PAGO</th>
+          <th style="text-align: right;">TOTAL VENTAS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>EFECTIVO</strong></td>
+          <td style="text-align: right;"><strong>${formatCurrency(caja.salesCash)}</strong></td>
+        </tr>
+        <tr>
+          <td><strong>TARJETA (TUU)</strong></td>
+          <td style="text-align: right;"><strong>${formatCurrency(caja.salesCard)}</strong></td>
+        </tr>
+        <tr>
+          <td><strong>TRANSFERENCIA</strong></td>
+          <td style="text-align: right;"><strong>${formatCurrency(caja.salesTransfer)}</strong></td>
+        </tr>
+        <tr style="background-color: var(--primary-light); font-weight: bold;">
+          <td>TOTAL RECAUDACIÓN TURNO</td>
+          <td style="text-align: right; color: var(--primary);">${formatCurrency(totalRevenue)}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top: 50px; display: flex; justify-content: space-between; padding: 0 40px;">
+      <div style="width: 200px; border-top: 1px solid var(--text-main); text-align: center; padding-top: 8px;">
+        <p style="font-size: 11px; font-weight: bold; margin: 0;">FIRMA CAJERO</p>
+      </div>
+      <div style="width: 200px; border-top: 1px solid var(--text-main); text-align: center; padding-top: 8px;">
+        <p style="font-size: 11px; font-weight: bold; margin: 0;">FIRMA ADMINISTRADOR</p>
+      </div>
+    </div>
+
+    <div class="corporate-report-footer">
+      <p>COFFEELAB - SISTEMA DE GESTIÓN Y POS. COPYRIGHT © ${new Date().getFullYear()} PUNTO 41.</p>
+    </div>
+  `;
+}
+
+function executeCloseCaja() {
+  generateCajaPDF(cashRegister);
+  triggerPDFPrint();
+
+  cashRegister = {
+    open: false,
+    initialAmount: 0,
+    salesCash: 0,
+    salesCard: 0,
+    salesTransfer: 0,
+    openTime: null
+  };
+  localStorage.setItem('p41_cash_register', JSON.stringify(cashRegister));
+  
+  closeModal('close-caja-modal');
+  showToast('Caja cerrada con éxito. Reporte PDF enviado a impresión.', 'success');
+  updateCashRegisterUI();
+}
+window.executeCloseCaja = executeCloseCaja;
+
+// --- FORMATEADOR DE RUT CHILENO ---
+function formatRutString(rut) {
+  let value = rut.replace(/[^0-9kK]/g, '').toUpperCase();
+  if (value.length <= 1) return value;
+  
+  const dv = value.slice(-1);
+  let body = value.slice(0, -1);
+  
+  let formatted = '';
+  while (body.length > 3) {
+    formatted = '.' + body.slice(-3) + formatted;
+    body = body.slice(0, -3);
+  }
+  formatted = body + formatted;
+  
+  return formatted + '-' + dv;
+}
+
+function setupRutFormatting(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  input.addEventListener('input', (e) => {
+    let cleanVal = e.target.value.replace(/[^0-9kK]/g, '');
+    if (!cleanVal) {
+      e.target.value = '';
+      return;
+    }
+    if (cleanVal.length > 9) {
+      cleanVal = cleanVal.slice(0, 9);
+    }
+    e.target.value = formatRutString(cleanVal);
+  });
+}
+window.setupRutFormatting = setupRutFormatting;
+
+// --- CAMBIO DE CONTRASEÑA ---
+function changeAdminPasscode() {
+  const input = document.getElementById('settings-admin-passcode');
+  if (!input) return;
+  const val = input.value.trim();
+  if (val.length !== 4 || isNaN(val)) {
+    showToast('La clave de administrador debe ser un número de exactamente 4 dígitos.', 'danger');
+    return;
+  }
+  adminPasscode = val;
+  localStorage.setItem('p41_admin_passcode', adminPasscode);
+  showToast('Clave de administrador actualizada correctamente.', 'success');
+  input.value = '';
+  saveStateToLocalStorage(true);
+}
+window.changeAdminPasscode = changeAdminPasscode;
 
 
