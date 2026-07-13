@@ -1162,6 +1162,10 @@ a {
   transition: transform 0.25s ease;
 }
 
+#product-modal .modal-content {
+  max-width: 680px;
+}
+
 .modal-content.mini {
   max-width: 380px;
 }
