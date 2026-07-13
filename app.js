@@ -2495,23 +2495,56 @@ function handleProductFormSubmit(e) {
   const finalIcon = selectedIcon === 'auto' ? autodetected.icon : selectedIcon;
   const finalColor = selectedColor === 'auto' ? autodetected.color : selectedColor;
 
+  // Conversión automática de unidades de medida grandes a sus unidades base pequeñas (kg -> g, l -> ml)
+  let finalUnit = unit;
+  let finalStock = stock;
+  let finalMinStock = minStock;
+  let finalCostPrice = costPrice;
+  let unitConverted = false;
+
+  if (unit === 'kg') {
+    finalUnit = 'g';
+    finalStock = stock * 1000;
+    finalMinStock = minStock * 1000;
+    finalCostPrice = Number((costPrice / 1000).toFixed(4));
+    unitConverted = true;
+  } else if (unit === 'l') {
+    finalUnit = 'ml';
+    finalStock = stock * 1000;
+    finalMinStock = minStock * 1000;
+    finalCostPrice = Number((costPrice / 1000).toFixed(4));
+    unitConverted = true;
+  }
+
   if (id) {
     const idx = state.products.findIndex(p => p.id === id);
     if (idx > -1) {
       state.products[idx] = { 
         ...state.products[idx], // Preservar propiedades y fechas existentes
-        name, sku, category, stock, unit, minStock, costPrice, salePrice, supplierId, 
+        name, sku, category, 
+        stock: finalStock, 
+        unit: finalUnit, 
+        minStock: finalMinStock, 
+        costPrice: finalCostPrice, 
+        salePrice, supplierId, 
         icon: finalIcon, 
         color: finalColor,
         posVisible,
         recipe
       };
-      showToast('Producto actualizado correctamente');
+      showToast(unitConverted 
+        ? 'Producto actualizado y convertido automáticamente a gramos/mililitros.' 
+        : 'Producto actualizado correctamente');
     }
   } else {
     const newProd = {
       id: 'prod-' + Date.now(),
-      name, sku, category, stock, unit, minStock, costPrice, salePrice, supplierId,
+      name, sku, category, 
+      stock: finalStock, 
+      unit: finalUnit, 
+      minStock: finalMinStock, 
+      costPrice: finalCostPrice, 
+      salePrice, supplierId,
       icon: finalIcon,
       color: finalColor,
       posVisible,
@@ -2519,7 +2552,9 @@ function handleProductFormSubmit(e) {
       created_at: new Date().toISOString()
     };
     state.products.push(newProd);
-    showToast('Producto creado con éxito');
+    showToast(unitConverted 
+      ? 'Producto creado y convertido automáticamente a gramos/mililitros.' 
+      : 'Producto creado con éxito');
   }
 
   saveStateToLocalStorage();
