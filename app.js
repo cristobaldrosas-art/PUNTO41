@@ -1,4 +1,3 @@
-
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -2587,30 +2586,21 @@ function handleProductFormSubmit(e) {
   const finalIcon = selectedIcon === 'auto' ? autodetected.icon : selectedIcon;
   const finalColor = selectedColor === 'auto' ? autodetected.color : selectedColor;
 
-  // Conversión automática de unidades de medida grandes a sus unidades base pequeñas (kg -> g, l -> ml)
+  // Mantener unidad, stock y precio de costo exactamente en la unidad seleccionada por el usuario
   let finalUnit = unit;
   let finalStock = stock;
   let finalMinStock = minStock;
   let finalCostPrice = costPrice;
-  let unitConverted = false;
 
-  // Convertir Stock Inicial y Costo según 'unit'
-  if (unit === 'kg') {
-    finalUnit = 'g';
-    finalStock = stock * 1000;
-    finalCostPrice = Number((costPrice / 1000).toFixed(4));
-    unitConverted = true;
-  } else if (unit === 'l') {
-    finalUnit = 'ml';
-    finalStock = stock * 1000;
-    finalCostPrice = Number((costPrice / 1000).toFixed(4));
-    unitConverted = true;
-  }
-
-  // Convertir Stock Mínimo según 'minStockUnit'
-  if (minStockUnit === 'kg' || minStockUnit === 'l') {
+  // Convertir Stock Mínimo para que coincida con la unidad principal del producto (ej: si es kg y min es g, guardar como kg)
+  if (unit === 'kg' && minStockUnit === 'g') {
+    finalMinStock = minStock / 1000;
+  } else if (unit === 'g' && minStockUnit === 'kg') {
     finalMinStock = minStock * 1000;
-    unitConverted = true;
+  } else if (unit === 'l' && minStockUnit === 'ml') {
+    finalMinStock = minStock / 1000;
+  } else if (unit === 'ml' && minStockUnit === 'l') {
+    finalMinStock = minStock * 1000;
   } else {
     finalMinStock = minStock;
   }
@@ -2631,9 +2621,7 @@ function handleProductFormSubmit(e) {
         posVisible,
         recipe
       };
-      showToast(unitConverted 
-        ? 'Producto actualizado y convertido automáticamente a gramos/mililitros.' 
-        : 'Producto actualizado correctamente');
+      showToast('Producto actualizado correctamente');
     }
   } else {
     const newProd = {
@@ -2651,9 +2639,7 @@ function handleProductFormSubmit(e) {
       created_at: new Date().toISOString()
     };
     state.products.push(newProd);
-    showToast(unitConverted 
-      ? 'Producto creado y convertido automáticamente a gramos/mililitros.' 
-      : 'Producto creado con éxito');
+    showToast('Producto creado con éxito');
   }
 
   saveStateToLocalStorage();
@@ -5560,7 +5546,5 @@ function getFormDisplayValues(value, unit) {
   return { value, unit };
 }
 window.getFormDisplayValues = getFormDisplayValues;
-
-
 
 
