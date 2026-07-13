@@ -2240,6 +2240,88 @@ input[type="password"], input[type="email"],
     padding: 4px !important;
   }
 }
+/* Estilos responsivos para tablas en pantallas móviles (tarjetas apiladas) */
+@media (max-width: 768px) {
+  /* Ocultar encabezados de tablas */
+  .inventory-table thead,
+  .sales-table thead,
+  .clients-table thead,
+  .suppliers-table thead {
+    display: none !important;
+  }
 
+  /* Forzar bloque en tabla y tbody */
+  .inventory-table, 
+  .inventory-table tbody, 
+  .sales-table,
+  .sales-table tbody,
+  .clients-table,
+  .clients-table tbody,
+  .suppliers-table,
+  .suppliers-table tbody {
+    display: block !important;
+    width: 100% !important;
+  }
 
+  /* Cada fila se convierte en una tarjeta independiente */
+  .inventory-table tr,
+  .sales-table tr,
+  .clients-table tr,
+  .suppliers-table tr {
+    display: flex !important;
+    flex-direction: column !important;
+    background: #ffffff !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 12px 15px !important;
+    margin-bottom: 12px !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
 
+  /* Cada celda se comporta como flexbox alineado a los extremos */
+  .inventory-table td,
+  .sales-table td,
+  .clients-table td,
+  .suppliers-table td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 8px 0 !important;
+    border-bottom: 1px dashed var(--border-color) !important;
+    font-size: 13px !important;
+    text-align: right !important;
+    width: 100% !important;
+  }
+
+  /* La celda de acciones o último td no lleva borde inferior y alinea a la derecha */
+  .inventory-table td:last-child,
+  .sales-table td:last-child,
+  .clients-table td:last-child,
+  .suppliers-table td:last-child {
+    border-bottom: none !important;
+    padding-top: 10px !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+  }
+
+  /* Añadir etiquetas descriptivas antes del valor de la celda */
+  .inventory-table td::before,
+  .sales-table td::before,
+  .clients-table td::before,
+  .suppliers-table td::before {
+    content: attr(data-label) !important;
+    font-weight: 700 !important;
+    color: var(--text-muted) !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    text-align: left !important;
+  }
+
+  /* Evitar desbordes de las acciones o inputs en forms */
+  .inventory-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
