@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Punto 41 - Sistema de Gestión y POS</title>
   <!-- Coffee Favicon (Logo de Café en la pestaña del navegador) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%236f4e37'%3E%3Cpath d='M128 320c0 35.3 28.7 64 64 64h96c35.3 0 64-28.7 64-64V128H128v192zm224-160v128c0 17.7 14.3 32 32 32h16c17.7 0 32-14.3 32-32V160c0-17.7-14.3-32-32-32h-16c-17.7 0-32 14.3-32 32zM96 64h352c17.7 0 32 14.3 32 32v192c0 53-43 96-96 96H192c-53 0-96-43-96-96V96c0-17.7 14.3-32 32-32zm-32 352h384c17.7 0 32 14.3 32 32s-14.3 32-32 32H64c-17.7 0-32-14.3-32-32s14.3-32 32-32z'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%231d4ed8'%3E%3Cpath d='M128 320c0 35.3 28.7 64 64 64h96c35.3 0 64-28.7 64-64V128H128v192zm224-160v128c0 17.7 14.3 32 32 32h16c17.7 0 32-14.3 32-32V160c0-17.7-14.3-32-32-32h-16c-17.7 0-32 14.3-32 32zM96 64h352c17.7 0 32 14.3 32 32v192c0 53-43 96-96 96H192c-53 0-96-43-96-96V96c0-17.7 14.3-32 32-32zm-32 352h384c17.7 0 32 14.3 32 32s-14.3 32-32 32H64c-17.7 0-32-14.3-32-32s14.3-32 32-32z'/%3E%3C/svg%3E">
   <!-- Google Fonts - Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -86,10 +86,10 @@
           <p id="current-date-string"></p>
         </div>
         <div class="header-actions" style="display: flex; align-items: center; gap: 15px;">
-          <div class="quick-status">
-            <span class="status-badge success">
-              <i class="fa-solid fa-circle-check"></i> Caja Abierta
-            </span>
+          <div class="quick-status" id="quick-cash-register-container">
+            <button id="btn-cash-register-toggle" class="status-badge danger" style="border: 1px solid var(--border-color); cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 700; border-radius: 20px; padding: 6px 12px; font-family: 'Outfit'; font-size: 11px; outline: none; transition: var(--transition); background-color: rgba(239, 68, 68, 0.1); color: var(--danger);">
+              <i class="fa-solid fa-circle-xmark" id="cash-register-icon"></i> <span id="cash-register-label">CAJA CERRADA</span>
+            </button>
           </div>
           
           <!-- Notification Bell and Dropdown -->
@@ -401,12 +401,17 @@
 
       <!-- 3. INVENTORY VIEW -->
       <section id="inventory-section" class="view-section">
-        <div class="section-actions-bar">
-          <div class="search-input-wrapper">
-            <i class="fa-solid fa-magnifying-glass search-icon"></i>
-            <input type="search" id="inventory-search" placeholder="Buscar por producto, SKU, categoría o proveedor...">
+        <div class="section-actions-bar" style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div style="display: flex; gap: 10px; flex: 1; max-width: 600px;">
+            <div class="search-input-wrapper" style="flex: 1; max-width: none;">
+              <i class="fa-solid fa-magnifying-glass search-icon"></i>
+              <input type="search" id="inventory-search" placeholder="Buscar por producto, SKU, categoría o proveedor...">
+            </div>
+            <select id="inventory-category-filter" style="padding: 10px 14px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-card); color: var(--text-main); font-size: 13px; font-weight: 600; outline: none; min-width: 180px; font-family: 'Outfit'; cursor: pointer;">
+              <option value="">-- Todas las Categorías --</option>
+            </select>
           </div>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn btn-secondary" onclick="exportInventoryPDF()" style="display: flex; align-items: center; gap: 6px;">
               <i class="fa-solid fa-file-pdf" style="color: #dc2626;"></i> Exportar PDF
             </button>
@@ -699,6 +704,28 @@
             </div>
 
             <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-key" style="color: var(--primary);"></i> Contraseña de Administrador / Admin PIN</h4>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 15px 0;">
+                Cambia la clave PIN numérica de 4 dígitos utilizada para acceder al perfil de Administrador.
+              </p>
+              <div style="display: flex; gap: 10px; align-items: center; max-width: 320px;">
+                <input type="password" id="settings-admin-passcode" placeholder="Nueva clave (Ej: 6707)" maxlength="4" style="width: 100%; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background-color: var(--bg-card); color: var(--text-main); font-size: 12px; font-family: 'Outfit'; outline: none;">
+                <button type="button" class="btn btn-primary" onclick="changeAdminPasscode()" style="font-size: 12px; padding: 8px 16px; flex-shrink: 0;">Cambiar</button>
+              </div>
+            </div>
+
+            <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 15px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-language" style="color: var(--primary);"></i> Idioma / Language</h4>
+              <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 15px 0;">
+                Seleccione el idioma de visualización de la aplicación.
+              </p>
+              <select id="settings-language" onchange="changeLanguage(this.value)" style="padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background-color: var(--bg-card); color: var(--text-main); font-size: 12px; font-family: 'Outfit'; outline: none; min-width: 160px; cursor: pointer;">
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+
+            <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 15px;">
               <h4 style="margin: 0 0 8px 0; color: var(--text-main); font-size: 14px; display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-trash-can" style="color: var(--danger);"></i> Restablecer Valores de Fábrica</h4>
               <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0 0 15px 0;">
                 Esta acción eliminará todos los datos personalizados de productos, ventas e historial del navegador y volverá a cargar los datos semilla de demostración.
@@ -737,6 +764,76 @@
       <div style="display: flex; gap: 10px; margin-top: 20px;">
         <button type="button" class="btn btn-danger" id="btn-tuu-cancel" style="flex: 1; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
           <i class="fa-solid fa-ban"></i> Cancelar Cobro
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Abrir Caja -->
+  <div class="modal-overlay" id="open-caja-modal" style="z-index: 1100;">
+    <div class="modal-content mini" style="max-width: 340px; padding: 25px; border-radius: var(--radius-md); text-align: center; background-color: #ffffff; font-family: 'Outfit'; border: 1px solid var(--border-color);">
+      <div style="margin-bottom: 20px;">
+        <div style="background-color: rgba(16, 185, 129, 0.1); color: var(--success); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+          <i class="fa-solid fa-door-open" style="font-size: 22px;"></i>
+        </div>
+        <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color: var(--text-main);">Abrir Caja</h3>
+        <p style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">Ingrese el monto en efectivo inicial para la apertura de caja.</p>
+      </div>
+      <form id="open-caja-form" onsubmit="executeOpenCaja(event)">
+        <div style="margin-bottom: 20px;">
+          <input type="number" id="open-caja-amount" placeholder="Monto Inicial (Ej: 50000)" required min="0" style="width: 100%; text-align: center; font-size: 18px; font-weight: 700; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-xs); background-color: var(--bg-app); color: var(--text-main); outline: none;">
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('open-caja-modal')" style="flex: 1; font-size: 13px;">Cancelar</button>
+          <button type="submit" class="btn btn-success" style="flex: 1; font-size: 13px; font-weight: bold;">Abrir Caja</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Cerrar Caja -->
+  <div class="modal-overlay" id="close-caja-modal" style="z-index: 1100;">
+    <div class="modal-content mini" style="max-width: 360px; padding: 25px; border-radius: var(--radius-md); text-align: center; background-color: #ffffff; font-family: 'Outfit'; border: 1px solid var(--border-color);">
+      <div style="margin-bottom: 20px;">
+        <div style="background-color: rgba(239, 68, 68, 0.1); color: var(--danger); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto;">
+          <i class="fa-solid fa-door-closed" style="font-size: 22px;"></i>
+        </div>
+        <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color: var(--text-main);">Cerrar Caja</h3>
+        <p style="margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.4;">Resumen financiero de la jornada actual.</p>
+      </div>
+      
+      <div style="background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 15px; margin-bottom: 20px; text-align: left; display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Monto Apertura:</span>
+          <strong id="close-caja-opening-val">$0</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Ventas Efectivo:</span>
+          <strong id="close-caja-cash-val">$0</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Ventas Tarjeta:</span>
+          <strong id="close-caja-card-val">$0</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: var(--text-muted);">Ventas Transferencia:</span>
+          <strong id="close-caja-transfer-val">$0</strong>
+        </div>
+        <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 4px 0;">
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: var(--primary);">
+          <span>Efectivo Esperado:</span>
+          <span id="close-caja-expected-cash-val">$0</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; color: var(--text-main);">
+          <span>Total Recaudado:</span>
+          <span id="close-caja-total-revenue-val">$0</span>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('close-caja-modal')" style="flex: 1; font-size: 13px;">Volver</button>
+        <button type="button" class="btn btn-danger" onclick="executeCloseCaja()" style="flex: 1; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;">
+          <i class="fa-solid fa-file-pdf"></i> Cerrar & PDF
         </button>
       </div>
     </div>
