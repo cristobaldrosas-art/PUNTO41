@@ -1,3 +1,4 @@
+
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -2183,23 +2184,23 @@ function renderInventory(searchQuery = '') {
       : formatCurrency(p.costPrice);
 
     tr.innerHTML = `
-      <td><strong>${p.sku}</strong></td>
-      <td>
+      <td data-label="SKU"><strong>${p.sku}</strong></td>
+      <td data-label="Ícono">
         <div class="inventory-icon-thumbnail" style="background-color: ${iconColor};" title="${p.name}">
           <i class="${iconClass}"></i>
         </div>
       </td>
-      <td>${nameDisplay}</td>
-      <td><span class="badge badge-neutral">${p.category}</span></td>
-      <td>${costDisplay}</td>
-      <td><strong>${formatCurrency(p.salePrice)}</strong></td>
-      <td>
+      <td data-label="Nombre">${nameDisplay}</td>
+      <td data-label="Categoría"><span class="badge badge-neutral">${p.category}</span></td>
+      <td data-label="Precio Costo">${costDisplay}</td>
+      <td data-label="Precio Venta"><strong>${formatCurrency(p.salePrice)}</strong></td>
+      <td data-label="Stock">
         <span class="badge ${isLow ? 'badge-danger' : 'badge-success'}">
           ${stockDisplay}
         </span>
       </td>
-      <td>${provName}</td>
-      <td>
+      <td data-label="Proveedor">${provName}</td>
+      <td data-label="Acciones">
         <button class="btn btn-secondary btn-sm" onclick="editProduct('${p.id}')" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
       </td>
@@ -2689,14 +2690,14 @@ function renderClients(searchQuery = '') {
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${cli.name}</strong></td>
-      <td>${cli.rut}</td>
-      <td>${cli.phone || '<span class="text-light">N/A</span>'}</td>
-      <td>${cli.email || '<span class="text-light">N/A</span>'}</td>
-      <td><span class="badge badge-neutral">${purchasesCount} compras</span></td>
-      <td><strong style="color: var(--success);"><i class="fa-solid fa-award"></i> $${(cli.points || 0).toLocaleString('es-CL')}</strong></td>
-      <td><strong>${formatCurrency(totalSpent)}</strong></td>
-      <td>
+      <td data-label="Nombre"><strong>${cli.name}</strong></td>
+      <td data-label="RUT">${cli.rut}</td>
+      <td data-label="Teléfono">${cli.phone || '<span class="text-light">N/A</span>'}</td>
+      <td data-label="Correo">${cli.email || '<span class="text-light">N/A</span>'}</td>
+      <td data-label="Compras"><span class="badge badge-neutral">${purchasesCount} compras</span></td>
+      <td data-label="Puntos P41"><strong style="color: var(--success);"><i class="fa-solid fa-award"></i> $${(cli.points || 0).toLocaleString('es-CL')}</strong></td>
+      <td data-label="Total Gastado"><strong>${formatCurrency(totalSpent)}</strong></td>
+      <td data-label="Acciones">
         <button class="btn btn-secondary btn-sm" onclick="editClient('${cli.id}')" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteClient('${cli.id}')" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
       </td>
@@ -2817,12 +2818,12 @@ function renderSuppliers(searchQuery = '') {
   filtered.forEach(sup => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${sup.name}</strong></td>
-      <td>${sup.rut}</td>
-      <td>${sup.phone}</td>
-      <td>${sup.email}</td>
-      <td><span style="font-size: 12px; color: var(--text-muted);">${sup.address}</span></td>
-      <td>
+      <td data-label="Nombre"><strong>${sup.name}</strong></td>
+      <td data-label="RUT">${sup.rut}</td>
+      <td data-label="Teléfono">${sup.phone}</td>
+      <td data-label="Correo">${sup.email}</td>
+      <td data-label="Dirección"><span style="font-size: 12px; color: var(--text-muted);">${sup.address}</span></td>
+      <td data-label="Acciones">
         <button class="btn btn-secondary btn-sm" onclick="editSupplier('${sup.id}')" title="Editar"><i class="fa-solid fa-pen-to-square"></i></button>
         <button class="btn btn-danger btn-sm" onclick="deleteSupplier('${sup.id}')" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>
       </td>
@@ -3195,11 +3196,11 @@ function renderReports() {
       tr.style.cursor = 'pointer';
       tr.title = 'Haga clic para ver el desglose de la venta';
       tr.innerHTML = `
-        <td>${formattedDate}</td>
-        <td>${clientName}</td>
-        <td><strong>${formatCurrency(sale.total)}</strong></td>
-        <td class="${discAmount > 0 ? 'text-warning' : 'text-light'}">${discAmount > 0 ? `-${formatCurrency(discAmount)}` : '$0'}</td>
-        <td><span class="badge badge-neutral">${capitalize(sale.paymentMethod)}</span></td>
+        <td data-label="Fecha">${formattedDate}</td>
+        <td data-label="Cliente">${clientName}</td>
+        <td data-label="Total"><strong>${formatCurrency(sale.total)}</strong></td>
+        <td data-label="Descuento" class="${discAmount > 0 ? 'text-warning' : 'text-light'}">${discAmount > 0 ? `-${formatCurrency(discAmount)}` : '$0'}</td>
+        <td data-label="Método Pago"><span class="badge badge-neutral">${capitalize(sale.paymentMethod)}</span></td>
       `;
       tr.addEventListener('click', () => {
         viewSaleDetails(sale.id);
