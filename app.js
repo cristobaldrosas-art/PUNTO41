@@ -466,6 +466,44 @@ function setupEventListeners() {
     });
   }
 
+  // Conversión dinámica en tiempo real en la UI al cambiar el select de Unidad
+  const unitSelect = document.getElementById('product-unit');
+  if (unitSelect) {
+    unitSelect.addEventListener('focus', (e) => {
+      e.target.dataset.prevUnit = e.target.value;
+    });
+    
+    unitSelect.addEventListener('change', (e) => {
+      const prev = e.target.dataset.prevUnit || 'uds';
+      const curr = e.target.value;
+      e.target.dataset.prevUnit = curr;
+      
+      if (prev === curr) return;
+      
+      const stockInput = document.getElementById('product-stock');
+      const minStockInput = document.getElementById('product-min-stock');
+      const costInput = document.getElementById('product-cost-price');
+      
+      const isLarge = (u) => u === 'kg' || u === 'l';
+      const isSmall = (u) => u === 'g' || u === 'ml';
+      
+      // De grande (kg, l) a pequeña (g, ml) -> multiplicar stock por 1000, dividir costo por 1000
+      if (isLarge(prev) && isSmall(curr)) {
+        if (stockInput && stockInput.value) stockInput.value = Number(stockInput.value) * 1000;
+        if (minStockInput && minStockInput.value) minStockInput.value = Number(minStockInput.value) * 1000;
+        if (costInput && costInput.value) costInput.value = Number((Number(costInput.value) / 1000).toFixed(4));
+        showToast('Valores adaptados a unidad menor (x1000 en stock, /1000 en costo)', 'info');
+      }
+      // De pequeña (g, ml) a grande (kg, l) -> dividir stock por 1000, multiplicar costo por 1000
+      else if (isSmall(prev) && isLarge(curr)) {
+        if (stockInput && stockInput.value) stockInput.value = Number(stockInput.value) / 1000;
+        if (minStockInput && minStockInput.value) minStockInput.value = Number(minStockInput.value) / 1000;
+        if (costInput && costInput.value) costInput.value = Number((Number(costInput.value) * 1000).toFixed(4));
+        showToast('Valores adaptados a unidad mayor (/1000 en stock, x1000 en costo)', 'info');
+      }
+    });
+  }
+
   // GESTIÓN DE ROLES / PERFILES
   document.getElementById('app-role-select').addEventListener('change', (e) => {
     const chosenRole = e.target.value;
@@ -2169,7 +2207,10 @@ function openProductModal(prodId = null) {
     document.getElementById('product-stock').value = prod.stock;
     
     const unitEl = document.getElementById('product-unit');
-    if (unitEl) unitEl.value = prod.unit || 'uds';
+    if (unitEl) {
+      unitEl.value = prod.unit || 'uds';
+      unitEl.dataset.prevUnit = prod.unit || 'uds';
+    }
     
     document.getElementById('product-min-stock').value = prod.minStock;
     document.getElementById('product-cost-price').value = prod.costPrice;
@@ -2213,7 +2254,10 @@ function openProductModal(prodId = null) {
     if (recipeSec) recipeSec.style.display = 'block';
     
     const unitEl = document.getElementById('product-unit');
-    if (unitEl) unitEl.value = 'uds';
+    if (unitEl) {
+      unitEl.value = 'uds';
+      unitEl.dataset.prevUnit = 'uds';
+    }
 
     document.getElementById('product-icon').value = 'auto';
     document.getElementById('product-color').value = 'auto';
