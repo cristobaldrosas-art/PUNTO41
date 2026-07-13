@@ -1,3 +1,4 @@
+
 /* ==========================================================================
    PUNTO 41 - SISTEMA DE GESTIÓN Y POS
    LÓGICA DE APLICACIÓN (SPA, STORAGE, POS, BÚSQUEDA, REPORTES, ROLES E IMPRESIÓN)
@@ -466,7 +467,7 @@ function setupEventListeners() {
     });
   }
 
-  // Conversión dinámica en tiempo real en la UI al cambiar el select de Unidad
+  // Conversión dinámica en tiempo real en la UI al cambiar el select de Unidad (Stock Inicial y Costo)
   const unitSelect = document.getElementById('product-unit');
   if (unitSelect) {
     unitSelect.addEventListener('focus', (e) => {
@@ -481,7 +482,6 @@ function setupEventListeners() {
       if (prev === curr) return;
       
       const stockInput = document.getElementById('product-stock');
-      const minStockInput = document.getElementById('product-min-stock');
       const costInput = document.getElementById('product-cost-price');
       
       const isLarge = (u) => u === 'kg' || u === 'l';
@@ -490,16 +490,45 @@ function setupEventListeners() {
       // De grande (kg, l) a pequeña (g, ml) -> multiplicar stock por 1000, dividir costo por 1000
       if (isLarge(prev) && isSmall(curr)) {
         if (stockInput && stockInput.value) stockInput.value = Number(stockInput.value) * 1000;
-        if (minStockInput && minStockInput.value) minStockInput.value = Number(minStockInput.value) * 1000;
         if (costInput && costInput.value) costInput.value = Number((Number(costInput.value) / 1000).toFixed(4));
-        showToast('Valores adaptados a unidad menor (x1000 en stock, /1000 en costo)', 'info');
+        showToast('Valores de stock inicial y costo adaptados a unidad menor', 'info');
       }
       // De pequeña (g, ml) a grande (kg, l) -> dividir stock por 1000, multiplicar costo por 1000
       else if (isSmall(prev) && isLarge(curr)) {
         if (stockInput && stockInput.value) stockInput.value = Number(stockInput.value) / 1000;
-        if (minStockInput && minStockInput.value) minStockInput.value = Number(minStockInput.value) / 1000;
         if (costInput && costInput.value) costInput.value = Number((Number(costInput.value) * 1000).toFixed(4));
-        showToast('Valores adaptados a unidad mayor (/1000 en stock, x1000 en costo)', 'info');
+        showToast('Valores de stock inicial y costo adaptados a unidad mayor', 'info');
+      }
+    });
+  }
+
+  // Conversión dinámica en tiempo real en la UI para el select de Unidad de Stock Mínimo
+  const minUnitSelect = document.getElementById('product-min-stock-unit');
+  if (minUnitSelect) {
+    minUnitSelect.addEventListener('focus', (e) => {
+      e.target.dataset.prevUnit = e.target.value;
+    });
+    
+    minUnitSelect.addEventListener('change', (e) => {
+      const prev = e.target.dataset.prevUnit || 'uds';
+      const curr = e.target.value;
+      e.target.dataset.prevUnit = curr;
+      
+      if (prev === curr) return;
+      
+      const minStockInput = document.getElementById('product-min-stock');
+      const isLarge = (u) => u === 'kg' || u === 'l';
+      const isSmall = (u) => u === 'g' || u === 'ml';
+      
+      // De grande (kg, l) a pequeña (g, ml) -> multiplicar stock mínimo por 1000
+      if (isLarge(prev) && isSmall(curr)) {
+        if (minStockInput && minStockInput.value) minStockInput.value = Number(minStockInput.value) * 1000;
+        showToast('Valor de stock mínimo adaptado a unidad menor', 'info');
+      }
+      // De pequeña (g, ml) a grande (kg, l) -> dividir stock mínimo por 1000
+      else if (isSmall(prev) && isLarge(curr)) {
+        if (minStockInput && minStockInput.value) minStockInput.value = Number(minStockInput.value) / 1000;
+        showToast('Valor de stock mínimo adaptado a unidad mayor', 'info');
       }
     });
   }
@@ -2144,9 +2173,9 @@ function renderInventory(searchQuery = '') {
     }
 
     const unit = p.unit || 'uds';
-    let stockDisplay = `${availableStock} ${unit} (min: ${p.minStock} ${unit})`;
+    let stockDisplay = `${formatStockDisplay(availableStock, unit)} (min: ${formatStockDisplay(p.minStock, unit)})`;
     if (hasRecipe) {
-      stockDisplay = `${availableStock} ${unit} <span class="badge-stock-calculated">Receta</span> (min: ${p.minStock} ${unit})`;
+      stockDisplay = `${formatStockDisplay(availableStock, unit)} <span class="badge-stock-calculated">Receta</span> (min: ${formatStockDisplay(p.minStock, unit)})`;
     }
 
     const calculatedCost = getProductCalculatedCost(p);
@@ -2204,15 +2233,24 @@ function openProductModal(prodId = null) {
     document.getElementById('product-name').value = prod.name;
     document.getElementById('product-sku').value = prod.sku;
     document.getElementById('product-category').value = prod.category;
-    document.getElementById('product-stock').value = prod.stock;
+    const stockDisp = getFormDisplayValues(prod.stock, prod.unit || 'uds');
+    document.getElementById('product-stock').value = stockDisp.value;
     
     const unitEl = document.getElementById('product-unit');
     if (unitEl) {
-      unitEl.value = prod.unit || 'uds';
-      unitEl.dataset.prevUnit = prod.unit || 'uds';
+      unitEl.value = stockDisp.unit;
+      unitEl.dataset.prevUnit = stockDisp.unit;
     }
     
-    document.getElementById('product-min-stock').value = prod.minStock;
+    const minStockDisp = getFormDisplayValues(prod.minStock, prod.unit || 'uds');
+    document.getElementById('product-min-stock').value = minStockDisp.value;
+    
+    const minUnitEl = document.getElementById('product-min-stock-unit');
+    if (minUnitEl) {
+      minUnitEl.value = minStockDisp.unit;
+      minUnitEl.dataset.prevUnit = minStockDisp.unit;
+    }
+    
     document.getElementById('product-cost-price').value = prod.costPrice;
     document.getElementById('product-sale-price').value = prod.salePrice;
     document.getElementById('product-supplier').value = prod.supplierId;
@@ -2257,6 +2295,12 @@ function openProductModal(prodId = null) {
     if (unitEl) {
       unitEl.value = 'uds';
       unitEl.dataset.prevUnit = 'uds';
+    }
+    
+    const minUnitEl = document.getElementById('product-min-stock-unit');
+    if (minUnitEl) {
+      minUnitEl.value = 'uds';
+      minUnitEl.dataset.prevUnit = 'uds';
     }
 
     document.getElementById('product-icon').value = 'auto';
@@ -2303,7 +2347,8 @@ function addRecipeIngredientRow(selectedId = '', quantity = '', excludeId = '') 
       ${ingredientsList.map(p => {
         const isSelected = p.id === selectedId;
         const tag = p.posVisible === false ? ' [Insumo]' : '';
-        return `<option value="${p.id}" ${isSelected ? 'selected' : ''}>${p.name} (${p.sku})${tag}</option>`;
+        const stockText = formatStockDisplay(p.stock, p.unit || 'uds');
+        return `<option value="${p.id}" ${isSelected ? 'selected' : ''}>${p.name} (${p.sku})${tag} [Stock: ${stockText}]</option>`;
       }).join('')}
     </select>
     <input type="number" class="recipe-ing-qty" min="0.001" step="any" required placeholder="Cantidad" value="${quantity}">
@@ -2503,6 +2548,9 @@ function handleProductFormSubmit(e) {
   const unit = unitEl ? unitEl.value : 'uds';
   
   const minStock = Number(document.getElementById('product-min-stock').value);
+  const minStockUnitEl = document.getElementById('product-min-stock-unit');
+  const minStockUnit = minStockUnitEl ? minStockUnitEl.value : 'uds';
+  
   const costPrice = Number(document.getElementById('product-cost-price').value);
   const salePrice = Number(document.getElementById('product-sale-price').value);
   
@@ -2546,18 +2594,25 @@ function handleProductFormSubmit(e) {
   let finalCostPrice = costPrice;
   let unitConverted = false;
 
+  // Convertir Stock Inicial y Costo según 'unit'
   if (unit === 'kg') {
     finalUnit = 'g';
     finalStock = stock * 1000;
-    finalMinStock = minStock * 1000;
     finalCostPrice = Number((costPrice / 1000).toFixed(4));
     unitConverted = true;
   } else if (unit === 'l') {
     finalUnit = 'ml';
     finalStock = stock * 1000;
-    finalMinStock = minStock * 1000;
     finalCostPrice = Number((costPrice / 1000).toFixed(4));
     unitConverted = true;
+  }
+
+  // Convertir Stock Mínimo según 'minStockUnit'
+  if (minStockUnit === 'kg' || minStockUnit === 'l') {
+    finalMinStock = minStock * 1000;
+    unitConverted = true;
+  } else {
+    finalMinStock = minStock;
   }
 
   if (id) {
@@ -4193,7 +4248,7 @@ function updateNotifications() {
             </div>
             <div style="flex: 1;">
               <h5 style="margin: 0 0 2px 0; font-size: 13px; font-weight: 600; color: var(--text-main);">${prod.name}</h5>
-              <p style="margin: 0; font-size: 11px; color: var(--danger); font-weight: 500;">Quedan solo ${prod.stock} uds (Mín: ${prod.minStock})</p>
+              <p style="margin: 0; font-size: 11px; color: var(--danger); font-weight: 500;">Quedan solo ${formatStockDisplay(prod.stock, prod.unit)} (Mín: ${formatStockDisplay(prod.minStock, prod.unit)})</p>
             </div>
           </div>
           <div style="display: flex; gap: 8px; margin-left: 38px;">
@@ -5476,5 +5531,36 @@ function changeAdminPasscode() {
   saveStateToLocalStorage(true);
 }
 window.changeAdminPasscode = changeAdminPasscode;
+
+// --- MEJORAS DE UNIDADES E INVENTARIO VISUAL ---
+function formatStockDisplay(stock, unit) {
+  const num = Number(stock);
+  if (isNaN(num)) return `0 ${unit}`;
+  
+  if (unit === 'g' && num >= 1000) {
+    return `${Number((num / 1000).toFixed(2))} KG`;
+  }
+  if (unit === 'ml' && num >= 1000) {
+    return `${Number((num / 1000).toFixed(2))} L`;
+  }
+  return `${stock} ${unit}`;
+}
+window.formatStockDisplay = formatStockDisplay;
+
+function getFormDisplayValues(value, unit) {
+  const num = Number(value);
+  if (isNaN(num)) return { value, unit };
+  
+  if (unit === 'g' && num >= 1000) {
+    return { value: Number((num / 1000).toFixed(4)), unit: 'kg' };
+  }
+  if (unit === 'ml' && num >= 1000) {
+    return { value: Number((num / 1000).toFixed(4)), unit: 'l' };
+  }
+  return { value, unit };
+}
+window.getFormDisplayValues = getFormDisplayValues;
+
+
 
 
