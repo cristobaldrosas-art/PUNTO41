@@ -921,6 +921,12 @@
       <form id="product-form" class="modal-form">
         <input type="hidden" id="product-id">
         
+        <!-- Disponible para venta destacado al inicio -->
+        <div style="background-color: var(--primary-light); border: 1px solid var(--primary-glow); border-radius: var(--radius-md); padding: 12px 15px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; box-shadow: var(--shadow-sm);">
+          <input type="checkbox" id="product-pos-visible" checked style="width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; margin: 0;">
+          <label for="product-pos-visible" style="margin: 0; font-weight: 700; cursor: pointer; color: var(--primary); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Disponible para la Venta en Caja (POS)</label>
+        </div>
+
         <div class="form-group">
           <label for="product-name">Nombre del Producto *</label>
           <input type="text" id="product-name" required placeholder="Ej: Espresso Simple">
@@ -1105,6 +1111,24 @@
           </div>
         </div>
 
+        <!-- Recipe Section (Conditional) - Colocada antes de Stock Inicial -->
+        <div id="product-recipe-section" style="border-top: 1px dashed var(--border-color); border-bottom: 1px dashed var(--border-color); padding-top: 15px; padding-bottom: 15px; margin-top: 15px; margin-bottom: 20px; background-color: var(--bg-app); border-radius: var(--radius-md); padding: 15px;">
+          <h4 style="margin-bottom: 6px; color: var(--text-main); font-size: 13px; display: flex; align-items: center; gap: 6px; text-transform: uppercase;">
+            <i class="fa-solid fa-list-check" style="color: var(--primary);"></i> Receta de Insumos (Opcional)
+          </h4>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4; text-transform: uppercase;">
+            Asocia este producto con insumos o ingredientes base del inventario. El stock máximo para la venta se calculará y descontará automáticamente según el stock disponible de estos ingredientes.
+          </p>
+          
+          <div class="recipe-ingredients-list" id="recipe-ingredients-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 200px; overflow-y: auto; padding-right: 5px;">
+            <!-- Dynamic ingredient rows here -->
+          </div>
+          
+          <button type="button" class="btn btn-secondary" id="btn-add-recipe-ingredient" style="padding: 8px 12px; font-size: 11px; display: flex; align-items: center; gap: 6px; border-radius: var(--radius-sm); font-weight: bold; background-color: #ffffff; border: 1px solid var(--border-color); cursor: pointer;">
+            <i class="fa-solid fa-plus"></i> AGREGAR INGREDIENTE / INSUMO
+          </button>
+        </div>
+
         <div class="form-row">
           <div class="form-group" style="flex: 2;">
             <label for="product-stock">Stock Inicial *</label>
@@ -1143,29 +1167,6 @@
             <option value="">-- Seleccionar Proveedor --</option>
             <!-- Dynamic suppliers list -->
           </select>
-        </div>
-
-        <div class="form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 10px; margin-bottom: 15px;">
-          <input type="checkbox" id="product-pos-visible" checked style="width: auto; margin: 0;">
-          <label for="product-pos-visible" style="margin: 0; font-weight: 600; cursor: pointer;">Disponible para la venta en Caja (POS)</label>
-        </div>
-
-        <!-- Recipe Section (Conditional) -->
-        <div id="product-recipe-section" style="border-top: 1px dashed var(--border-color); padding-top: 15px; margin-top: 15px; margin-bottom: 20px;">
-          <h4 style="margin-bottom: 6px; color: var(--text-main); font-size: 13px; display: flex; align-items: center; gap: 6px;">
-            <i class="fa-solid fa-list-check" style="color: var(--primary);"></i> Receta de Insumos (Opcional)
-          </h4>
-          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.4;">
-            Asocia este producto con insumos o ingredientes base del inventario. El stock máximo para la venta se calculará y descontará automáticamente según el stock disponible de estos ingredientes.
-          </p>
-          
-          <div class="recipe-ingredients-list" id="recipe-ingredients-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 200px; overflow-y: auto; padding-right: 5px;">
-            <!-- Dynamic ingredient rows here -->
-          </div>
-          
-          <button type="button" class="btn btn-secondary" id="btn-add-recipe-ingredient" style="padding: 6px 12px; font-size: 11px; display: flex; align-items: center; gap: 6px; border-radius: var(--radius-sm);">
-            <i class="fa-solid fa-plus"></i> Agregar Ingrediente / Insumo
-          </button>
         </div>
 
         <div class="modal-footer">
